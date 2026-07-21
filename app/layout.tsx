@@ -19,11 +19,9 @@ const notoSansTC = Noto_Sans_TC({
 
 export async function generateMetadata(): Promise<Metadata> {
   let seo = createDefaultContent().settings.seo
-  let logoUrl = '/brand/oneclick-logo.png'
   try {
     const content = await getSiteContent()
     seo = content.settings.seo
-    logoUrl = content.settings.logoUrl || logoUrl
   } catch {
     /* use defaults */
   }
@@ -43,11 +41,12 @@ export async function generateMetadata(): Promise<Metadata> {
       : undefined,
     icons: {
       icon: [
+        { url: '/favicon.ico', sizes: 'any' },
         { url: '/icon-32.png', sizes: '32x32', type: 'image/png' },
         { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
-        { url: logoUrl, type: 'image/png' },
       ],
       apple: '/apple-icon.png',
+      shortcut: '/favicon.ico',
     },
   }
 }
