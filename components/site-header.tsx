@@ -5,18 +5,22 @@ import { Globe, Menu, X } from "lucide-react"
 import { Logo } from "@/components/logo"
 import { useLanguage } from "@/components/language-provider"
 import { handleAnchorClick } from "@/lib/scroll"
+import { EditableText } from "@/components/admin/editable-text"
+import { EditableImage } from "@/components/admin/editable-image"
+import { useEditor } from "@/components/admin/editor-provider"
 
 export function SiteHeader() {
   const { t, lang, toggle, settings } = useLanguage()
+  const editor = useEditor()
   const [open, setOpen] = useState(false)
   const appUrl = settings.appUrl
 
-  const links = [
-    { href: "#features", label: t.nav.features },
-    { href: "#how", label: t.nav.how },
-    { href: "#enterprise", label: t.nav.enterprise },
-    { href: "#shop", label: t.nav.shop },
-    { href: "#about", label: t.nav.about },
+  const links: { href: string; key: string; label: string }[] = [
+    { href: "#features", key: "features", label: t.nav.features },
+    { href: "#how", key: "how", label: t.nav.how },
+    { href: "#enterprise", key: "enterprise", label: t.nav.enterprise },
+    { href: "#shop", key: "shop", label: t.nav.shop },
+    { href: "#about", key: "about", label: t.nav.about },
   ]
 
   return (
@@ -25,9 +29,17 @@ export function SiteHeader() {
         <a
           href="#top"
           aria-label={`${settings.brandNameZh} ${settings.brandNameEn}`}
-          onClick={(e) => handleAnchorClick(e, "#top")}
+          onClick={(e) => {
+            if (editor) {
+              e.preventDefault()
+              return
+            }
+            handleAnchorClick(e, "#top")
+          }}
         >
-          <Logo logoUrl={settings.logoUrl} />
+          <EditableImage path={["logoUrl"]} src={settings.logoUrl} mediaId="logo" label="更換 Logo">
+            <Logo logoUrl={settings.logoUrl} />
+          </EditableImage>
         </a>
 
         <nav className="hidden items-center gap-7 lg:flex" aria-label="Primary">
@@ -35,10 +47,16 @@ export function SiteHeader() {
             <a
               key={l.href}
               href={l.href}
-              onClick={(e) => handleAnchorClick(e, l.href)}
+              onClick={(e) => {
+                if (editor) {
+                  e.preventDefault()
+                  return
+                }
+                handleAnchorClick(e, l.href)
+              }}
               className="text-sm font-medium text-muted-foreground transition-colors hover:text-brand"
             >
-              {l.label}
+              <EditableText path={["nav", l.key]} value={l.label} />
             </a>
           ))}
         </nav>
@@ -54,12 +72,15 @@ export function SiteHeader() {
             {lang === "zh" ? "EN" : "繁"}
           </button>
           <a
-            href={appUrl}
-            target="_blank"
+            href={editor ? undefined : appUrl}
+            target={editor ? undefined : "_blank"}
             rel="noopener noreferrer"
+            onClick={(e) => {
+              if (editor) e.preventDefault()
+            }}
             className="hidden h-11 items-center justify-center rounded-full bg-brand px-5 text-sm font-semibold text-brand-foreground shadow-sm transition-colors hover:bg-brand/90 sm:inline-flex"
           >
-            {t.nav.openApp}
+            <EditableText path={["nav", "openApp"]} value={t.nav.openApp} />
           </a>
           <button
             type="button"
@@ -81,21 +102,28 @@ export function SiteHeader() {
                 key={l.href}
                 href={l.href}
                 onClick={(e) => {
+                  if (editor) {
+                    e.preventDefault()
+                    return
+                  }
                   handleAnchorClick(e, l.href)
                   setOpen(false)
                 }}
                 className="rounded-lg px-3 py-3 text-base font-medium text-foreground transition-colors hover:bg-secondary"
               >
-                {l.label}
+                <EditableText path={["nav", l.key]} value={l.label} />
               </a>
             ))}
             <a
-              href={appUrl}
-              target="_blank"
+              href={editor ? undefined : appUrl}
+              target={editor ? undefined : "_blank"}
               rel="noopener noreferrer"
+              onClick={(e) => {
+                if (editor) e.preventDefault()
+              }}
               className="mt-2 flex h-12 items-center justify-center rounded-full bg-brand px-5 text-base font-semibold text-brand-foreground"
             >
-              {t.nav.openApp}
+              <EditableText path={["nav", "openApp"]} value={t.nav.openApp} />
             </a>
           </nav>
         </div>

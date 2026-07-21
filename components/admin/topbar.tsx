@@ -1,6 +1,6 @@
 "use client"
 
-import { Check, Eye, LogOut, Menu } from "lucide-react"
+import { Check, Eye, LogOut, Menu, Monitor, Smartphone } from "lucide-react"
 import type { Lang } from "@/lib/i18n"
 import { Segmented } from "@/components/admin/primitives"
 
@@ -12,6 +12,8 @@ export function Topbar({
   saved,
   saving,
   dbConnected,
+  viewport,
+  onViewportChange,
   onSave,
   onLogout,
   onMenu,
@@ -23,6 +25,8 @@ export function Topbar({
   saved: boolean
   saving?: boolean
   dbConnected?: boolean
+  viewport: "desktop" | "mobile"
+  onViewportChange: (v: "desktop" | "mobile") => void
   onSave: () => void
   onLogout?: () => void
   onMenu: () => void
@@ -31,9 +35,7 @@ export function Topbar({
     ? { text: "未連接資料庫", className: "bg-destructive/10 text-destructive", dot: "bg-destructive" }
     : dirty
       ? { text: "未儲存變更", className: "bg-gold/15 text-gold-foreground", dot: "bg-gold-foreground" }
-      : saved
-        ? { text: "已儲存", className: "bg-success/10 text-success", dot: "bg-success" }
-        : { text: "已儲存", className: "bg-success/10 text-success", dot: "bg-success" }
+      : { text: saved ? "已儲存" : "已儲存", className: "bg-success/10 text-success", dot: "bg-success" }
 
   return (
     <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-border bg-background/90 px-4 py-3 backdrop-blur sm:px-6">
@@ -54,6 +56,25 @@ export function Topbar({
       </div>
 
       <div className="flex items-center gap-2 sm:gap-3">
+        <div className="hidden items-center gap-1 rounded-lg border border-border p-0.5 sm:flex">
+          <button
+            type="button"
+            onClick={() => onViewportChange("desktop")}
+            className={`grid size-8 place-items-center rounded-md ${viewport === "desktop" ? "bg-muted text-foreground" : "text-muted-foreground"}`}
+            aria-label="桌面預覽"
+          >
+            <Monitor className="size-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => onViewportChange("mobile")}
+            className={`grid size-8 place-items-center rounded-md ${viewport === "mobile" ? "bg-muted text-foreground" : "text-muted-foreground"}`}
+            aria-label="手機預覽"
+          >
+            <Smartphone className="size-4" />
+          </button>
+        </div>
+
         <div className="hidden items-center gap-2 sm:flex">
           <span className="text-xs text-muted-foreground">編輯語言</span>
           <Segmented<Lang>
@@ -68,7 +89,6 @@ export function Topbar({
 
         <span
           className={`hidden items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium sm:inline-flex ${status.className}`}
-          title={!dbConnected ? "變更唔會永久保存，請設定 MONGODB_URI" : undefined}
         >
           <span className={`size-1.5 rounded-full ${status.dot}`} />
           {status.text}
@@ -81,7 +101,7 @@ export function Topbar({
           className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted"
         >
           <Eye className="size-3.5" />
-          <span className="hidden sm:inline">預覽</span>
+          <span className="hidden sm:inline">前台</span>
         </a>
 
         <button

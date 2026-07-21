@@ -10,7 +10,13 @@ import {
   type ReactNode,
 } from "react"
 import { dict, type Lang } from "@/lib/i18n"
-import { createDefaultContent, type LocaleContent, type SiteContent, type SiteSettings } from "@/lib/content"
+import {
+  createDefaultContent,
+  type LocaleContent,
+  type SiteContent,
+  type SiteSettings,
+} from "@/lib/content"
+import { useEditor } from "@/components/admin/editor-provider"
 
 type LanguageContextValue = {
   lang: Lang
@@ -26,6 +32,11 @@ const LanguageContext = createContext<LanguageContextValue | null>(null)
 
 const LANG_KEY = "oc_lang"
 
+function stripMeta(data: SiteContent & { _meta?: unknown }): SiteContent {
+  const { _meta, ...rest } = data as SiteContent & { _meta?: unknown }
+  return rest as SiteContent
+}
+
 export function LanguageProvider({
   children,
   initialContent,
@@ -33,27 +44,34 @@ export function LanguageProvider({
   children: ReactNode
   initialContent?: SiteContent | null
 }) {
+  const editor = useEditor()
   const fallback = useMemo(() => initialContent || createDefaultContent(), [initialContent])
-  const [content, setContent] = useState<SiteContent>(fallback)
-  const [loading, setLoading] = useState(!initialContent)
-  const [lang, setLangState] = useState<Lang>("zh")
+  const [localContent, setLocalContent] = useState<SiteContent>(fallback)
+  const [loading, setLoading] = useState(!initialContent && !editor)
+  const [localLang, setLocalLangState] = useState<Lang>("zh")
 
   useEffect(() => {
+    if (editor) return
     try {
       const stored = localStorage.getItem(LANG_KEY) as Lang | null
-      if (stored === "zh" || stored === "en") setLangState(stored)
+      if (stored === "zh" || stored === "en") setLocalLangState(stored)
     } catch {
       /* ignore */
     }
-  }, [])
+  }, [editor])
 
   useEffect(() => {
-    document.documentElement.lang = lang === "zh" ? "zh-Hant" : "en"
-  }, [lang])
+    if (editor) return
+    document.documentElement.lang = localLang === "zh" ? "zh-Hant" : "en"
+  }, [localLang, editor])
 
   useEffect(() => {
+    if (editor) {
+      setLoading(false)
+      return
+    }
     if (initialContent) {
-      setContent(initialContent)
+      setLocalContent(stripMeta(initialContent as SiteContent & { _meta?: unknown }))
       setLoading(false)
       return
     }
@@ -62,11 +80,11 @@ export function LanguageProvider({
       try {
         const res = await fetch("/api/content", { cache: "no-store" })
         if (!res.ok) throw new Error("fail")
-        const data = (await res.json()) as SiteContent
-        if (!cancelled) setContent(data)
+        const data = await res.json()
+        if (!cancelled) setLocalContent(stripMeta(data))
       } catch {
         if (!cancelled) {
-          setContent({
+          setLocalContent({
             ...createDefaultContent(),
             zh: structuredClone(dict.zh) as LocaleContent,
             en: structuredClone(dict.en) as LocaleContent,
@@ -79,16 +97,20 @@ export function LanguageProvider({
     return () => {
       cancelled = true
     }
-  }, [initialContent])
+  }, [initialContent, editor])
 
-  const setLang = useCallback((next: Lang) => {
-    setLangState(next)
+  const setLocalLang = useCallback((next: Lang) => {
+    setLocalLangState(next)
     try {
       localStorage.setItem(LANG_KEY, next)
     } catch {
       /* ignore */
     }
   }, [])
+
+  const content = editor ? editor.content : localContent
+  const lang = editor ? editor.lang : localLang
+  const setLang = editor ? editor.setLang : setLocalLang
 
   const toggle = useCallback(() => {
     setLang(lang === "zh" ? "en" : "zh")
