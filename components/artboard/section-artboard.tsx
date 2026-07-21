@@ -75,7 +75,9 @@ function applyMeasuredSizes(
 }
 
 function isFixedSizeItem(it: ArtboardItem) {
-  return (isFreeformItem(it) && it.kind === "image") || /\.image$/.test(it.id)
+  if (isFreeformItem(it) && it.kind === "image") return true
+  // hero.imagePrimary / pillar.0.image / store badges — must keep frame width
+  return /image|badge|store|mockup|screen/i.test(it.id)
 }
 
 function isTypingTarget(el: EventTarget | null) {
