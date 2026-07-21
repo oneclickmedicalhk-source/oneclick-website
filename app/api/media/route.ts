@@ -65,6 +65,15 @@ export async function POST(req: Request) {
     const alt = String(form.get("alt") || file.name || "上傳圖片")
     const url = await persistFile(file)
 
+    // Data-URL fallback is for draft preview only — do not write huge payloads into Mongo.
+    if (url.startsWith("data:")) {
+      return NextResponse.json({
+        url,
+        ephemeral: true,
+        warning: "伺服器未設定永久圖片儲存（Vercel Blob），圖片會暫存於草稿；請記得撳儲存。",
+      })
+    }
+
     if (replaceId) {
       const content = await replaceMediaUrl(replaceId, url, alt)
       return NextResponse.json({ url, media: content.media, content })

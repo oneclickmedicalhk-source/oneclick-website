@@ -23,37 +23,39 @@ export function SiteHeader() {
     { href: "#about", key: "about", label: t.nav.about },
   ]
 
+  const onNav = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    // Keep in-page anchors usable inside the visual editor canvas
+    handleAnchorClick(e, href)
+    setOpen(false)
+  }
+
+  const brand = (
+    <EditableImage path={["logoUrl"]} src={settings.logoUrl} mediaId="logo" label="更換 Logo">
+      <Logo logoUrl={settings.logoUrl} />
+    </EditableImage>
+  )
+
   return (
     <header className="sticky top-0 z-50 border-b border-border/70 bg-background/85 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-        <a
-          href="#top"
-          aria-label={`${settings.brandNameZh} ${settings.brandNameEn}`}
-          onClick={(e) => {
-            if (editor) {
-              e.preventDefault()
-              return
-            }
-            handleAnchorClick(e, "#top")
-          }}
-        >
-          <EditableImage path={["logoUrl"]} src={settings.logoUrl} mediaId="logo" label="更換 Logo">
-            <Logo logoUrl={settings.logoUrl} />
-          </EditableImage>
-        </a>
+        {editor ? (
+          <div aria-label={`${settings.brandNameZh} ${settings.brandNameEn}`}>{brand}</div>
+        ) : (
+          <a
+            href="#top"
+            aria-label={`${settings.brandNameZh} ${settings.brandNameEn}`}
+            onClick={(e) => handleAnchorClick(e, "#top")}
+          >
+            {brand}
+          </a>
+        )}
 
         <nav className="hidden items-center gap-7 lg:flex" aria-label="Primary">
           {links.map((l) => (
             <a
               key={l.href}
               href={l.href}
-              onClick={(e) => {
-                if (editor) {
-                  e.preventDefault()
-                  return
-                }
-                handleAnchorClick(e, l.href)
-              }}
+              onClick={(e) => onNav(e, l.href)}
               className="text-sm font-medium text-muted-foreground transition-colors hover:text-brand"
             >
               <EditableText path={["nav", l.key]} value={l.label} />
@@ -62,15 +64,17 @@ export function SiteHeader() {
         </nav>
 
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={toggle}
-            className="flex h-11 items-center gap-1.5 rounded-full border border-border px-3 text-sm font-medium text-foreground transition-colors hover:border-brand hover:text-brand"
-            aria-label="Switch language"
-          >
-            <Globe className="size-4" aria-hidden="true" />
-            {lang === "zh" ? "EN" : "繁"}
-          </button>
+          {editor ? null : (
+            <button
+              type="button"
+              onClick={toggle}
+              className="flex h-11 items-center gap-1.5 rounded-full border border-border px-3 text-sm font-medium text-foreground transition-colors hover:border-brand hover:text-brand"
+              aria-label="Switch language"
+            >
+              <Globe className="size-4" aria-hidden="true" />
+              {lang === "zh" ? "EN" : "繁"}
+            </button>
+          )}
           <a
             href={editor ? undefined : appUrl}
             target={editor ? undefined : "_blank"}
@@ -101,14 +105,7 @@ export function SiteHeader() {
               <a
                 key={l.href}
                 href={l.href}
-                onClick={(e) => {
-                  if (editor) {
-                    e.preventDefault()
-                    return
-                  }
-                  handleAnchorClick(e, l.href)
-                  setOpen(false)
-                }}
+                onClick={(e) => onNav(e, l.href)}
                 className="rounded-lg px-3 py-3 text-base font-medium text-foreground transition-colors hover:bg-secondary"
               >
                 <EditableText path={["nav", l.key]} value={l.label} />

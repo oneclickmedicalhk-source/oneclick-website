@@ -75,19 +75,25 @@ export function SiteFooter() {
                 {col.links.map((l) => (
                   <li key={l.labelKey}>
                     <a
-                      href={l.href}
-                      {...(editor
+                      href={editor && l.external ? undefined : l.href}
+                      {...(l.href.startsWith("#")
                         ? {
-                            onClick: (e: React.MouseEvent<HTMLAnchorElement>) => e.preventDefault(),
+                            onClick: (e: React.MouseEvent<HTMLAnchorElement>) =>
+                              handleAnchorClick(e, l.href),
                           }
-                        : l.external
-                          ? { target: "_blank", rel: "noopener noreferrer" }
-                          : l.href.startsWith("#")
-                            ? {
-                                onClick: (e: React.MouseEvent<HTMLAnchorElement>) =>
-                                  handleAnchorClick(e, l.href),
-                              }
-                            : {})}
+                        : editor && l.external
+                          ? {
+                              onClick: (e: React.MouseEvent<HTMLAnchorElement>) =>
+                                e.preventDefault(),
+                            }
+                          : l.external
+                            ? { target: "_blank", rel: "noopener noreferrer" }
+                            : editor
+                              ? {
+                                  onClick: (e: React.MouseEvent<HTMLAnchorElement>) =>
+                                    e.preventDefault(),
+                                }
+                              : {})}
                       className="text-sm text-muted-foreground transition-colors hover:text-brand"
                     >
                       <EditableText path={["footer", "links", l.labelKey]} value={l.label} />

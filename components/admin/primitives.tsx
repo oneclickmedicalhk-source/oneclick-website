@@ -193,11 +193,17 @@ export async function uploadImageFile(file: File, opts?: { id?: string; alt?: st
   if (opts?.id) form.append("id", opts.id)
   if (opts?.alt) form.append("alt", opts.alt)
   const res = await fetch("/api/media", { method: "POST", body: form })
+  const data = await res.json().catch(() => ({}))
   if (!res.ok) {
-    const data = await res.json().catch(() => ({}))
     throw new Error(data.error || "上傳失敗")
   }
-  return res.json() as Promise<{ url: string; media?: unknown; content?: unknown }>
+  return data as {
+    url: string
+    media?: unknown
+    content?: unknown
+    warning?: string
+    ephemeral?: boolean
+  }
 }
 
 export function ImageField({
@@ -246,7 +252,19 @@ export function ImageField({
           <button
             type="button"
             disabled={busy}
-            onClick={() => inputRef.current?.click()}
+            onClick={() => {
+              const input = inputRef.current
+              if (!input) return
+              if (typeof input.showPicker === "function") {
+                try {
+                  input.showPicker()
+                  return
+                } catch {
+                  /* fall through */
+                }
+              }
+              input.click()
+            }}
             className="inline-flex w-fit items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground shadow-sm transition-colors hover:bg-muted disabled:opacity-60"
           >
             <Upload className="size-3.5" />
@@ -270,7 +288,7 @@ export function ImageField({
           ref={inputRef}
           type="file"
           accept="image/*"
-          className="hidden"
+          className="pointer-events-none absolute h-px w-px overflow-hidden opacity-0"
           onChange={(e) => handleFile(e.target.files?.[0])}
         />
       </div>
