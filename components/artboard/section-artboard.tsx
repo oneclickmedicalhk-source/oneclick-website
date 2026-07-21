@@ -7,12 +7,17 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react"
 import { useEditor, type HistoryMode } from "@/components/admin/editor-provider"
 import { useLanguage } from "@/components/language-provider"
-import { bringToFront, resolveCollisions } from "@/components/artboard/collision"
+import {
+  bringToFront,
+  resolveCollisions,
+  sendBackward,
+} from "@/components/artboard/collision"
 import { FreeformImage, FreeformText } from "@/components/artboard/freeform-widgets"
 import { SelectionToolbar } from "@/components/artboard/selection-toolbar"
 import {
@@ -21,7 +26,9 @@ import {
   createDefaultArtboards,
   deleteItemFromArtboard,
   duplicateArtboardItem,
+  isFixedSizeItem,
   isFreeformItem,
+  isWrapWidthItem,
   itemBounds,
   snapArtboard,
   snapItemWithGuides,
@@ -41,6 +48,8 @@ export const ARTBOARD_SELECT_EVENT = "artboard:select"
 
 export type ArtboardSelectDetail = { sectionId: string; id: string | null }
 
+type DragMode = "move" | "scale" | "resize-w"
+
 function useContainerScale(ref: React.RefObject<HTMLDivElement | null>) {
   const [scale, setScale] = useState(1)
   useEffect(() => {
@@ -58,7 +67,7 @@ function useContainerScale(ref: React.RefObject<HTMLDivElement | null>) {
   return scale
 }
 
-function applyMeasuredSizes(
+function applyMeasuredHeights(
   board: SectionArtboardData,
   measured: Map<string, { w: number; h: number }>,
 ): SectionArtboardData {
@@ -66,25 +75,30 @@ function applyMeasuredSizes(
     ...board,
     items: board.items.map((it) => {
       const m = measured.get(it.id)
-      if (!m) return it
-      // Height hugs content for collision; width stays as wrap/max constraint (CSS w-fit).
-      if (m.h && Math.abs(m.h - it.h) >= 2) return { ...it, h: m.h }
-      return it
+      if (!m?.h || Math.abs(m.h - it.h) < 2) return it
+      return { ...it, h: m.h }
     }),
   }
 }
 
-function isFixedSizeItem(it: ArtboardItem) {
-  if (isFreeformItem(it) && it.kind === "image") return true
-  // hero.imagePrimary / pillar.0.image / store badges — must keep frame width
-  return /image|badge|store|mockup|screen/i.test(it.id)
-}
-
 function isTypingTarget(el: EventTarget | null) {
   if (!(el instanceof HTMLElement)) return false
-  return Boolean(
-    el.closest("input, textarea, [contenteditable=true], select"),
-  )
+  return Boolean(el.closest("input, textarea, [contenteditable=true], select"))
+}
+
+function shellStyle(it: ArtboardItem): CSSProperties {
+  if (isFixedSizeItem(it)) {
+    return { width: it.w, height: it.h }
+  }
+  if (isWrapWidthItem(it)) {
+    return { width: it.w, height: "auto", maxWidth: it.w }
+  }
+  // Hug short titles / CTAs — max-content breaks block↔parent width cycle
+  return {
+    width: "max-content",
+    maxWidth: it.w,
+    height: "auto",
+  }
 }
 
 export function SectionArtboard({
@@ -106,7 +120,7 @@ export function SectionArtboard({
   const [guides, setGuides] = useState<SnapGuide[]>([])
   const dragRef = useRef<null | {
     id: string
-    mode: "move" | "scale"
+    mode: DragMode
     startX: number
     startY: number
     orig: ArtboardItem
@@ -142,17 +156,34 @@ export function SectionArtboard({
   )
 
   const boardForCollision = useCallback(() => {
-    return applyMeasuredSizes(boardRef.current, measuredSize.current)
+    return applyMeasuredHeights(boardRef.current, measuredSize.current)
   }, [])
 
-  const selectItem = useCallback((id: string | null) => {
-    setSelectedId(id)
-    window.dispatchEvent(
-      new CustomEvent<ArtboardSelectDetail>(ARTBOARD_SELECT_EVENT, {
-        detail: { sectionId, id },
-      }),
-    )
-  }, [sectionId])
+  const selectItem = useCallback(
+    (id: string | null) => {
+      setSelectedId(id)
+      window.dispatchEvent(
+        new CustomEvent<ArtboardSelectDetail>(ARTBOARD_SELECT_EVENT, {
+          detail: { sectionId, id },
+        }),
+      )
+    },
+    [sectionId],
+  )
+
+  const patchItem = useCallback(
+    (id: string, patch: Partial<ArtboardItem>, history: HistoryMode = "mutate") => {
+      const base = boardRef.current
+      commitBoard(
+        {
+          ...base,
+          items: base.items.map((row) => (row.id === id ? { ...row, ...patch } : row)),
+        },
+        history,
+      )
+    },
+    [commitBoard],
+  )
 
   useLayoutEffect(() => {
     const ro = new ResizeObserver((entries) => {
@@ -165,11 +196,7 @@ export function SectionArtboard({
         const h = Math.ceil(el.offsetHeight)
         if (!w || !h) continue
         const prev = measuredSize.current.get(id)
-        if (
-          !prev ||
-          Math.abs(prev.w - w) >= 2 ||
-          Math.abs(prev.h - h) >= 2
-        ) {
+        if (!prev || Math.abs(prev.w - w) >= 2 || Math.abs(prev.h - h) >= 2) {
           measuredSize.current.set(id, { w, h })
           changed = true
         }
@@ -202,7 +229,7 @@ export function SectionArtboard({
       if (!drag.active) {
         if (Math.hypot(dxScreen, dyScreen) < 5) return
         drag.active = true
-        if (!drag.raised) {
+        if (!drag.raised && drag.mode === "move") {
           const raised = bringToFront(boardForCollision(), drag.id)
           boardRef.current = raised
           commitBoard(raised, "drag")
@@ -222,11 +249,11 @@ export function SectionArtboard({
       const base = boardForCollision()
       let nextItems: ArtboardItem[]
       let nextGuides: SnapGuide[] = []
+
       if (drag.mode === "move") {
         const size = measuredSize.current.get(drag.id)
         const patched = {
           ...drag.orig,
-          // Keep stored w as wrap max; only hug height into the model.
           h: size?.h ?? drag.orig.h,
           x: drag.orig.x + dx,
           y: Math.max(0, drag.orig.y + dy),
@@ -234,6 +261,11 @@ export function SectionArtboard({
         const snapped = snapItemWithGuides(patched, base.items, 8)
         nextGuides = snapped.guides
         nextItems = base.items.map((it) => (it.id === drag.id ? snapped.item : it))
+      } else if (drag.mode === "resize-w") {
+        const nextW = Math.max(48, snapArtboard(drag.orig.w + dx))
+        nextItems = base.items.map((it) =>
+          it.id === drag.id ? { ...drag.orig, w: nextW } : it,
+        )
       } else {
         const size = measuredSize.current.get(drag.id)
         const delta = (dx + dy) / 220
@@ -251,7 +283,7 @@ export function SectionArtboard({
 
     const onUp = () => {
       const drag = dragRef.current
-      if (drag?.active) {
+      if (drag?.active && drag.mode !== "resize-w") {
         const base = boardRef.current
         const size = measuredSize.current.get(drag.id)
         if (size) {
@@ -308,24 +340,63 @@ export function SectionArtboard({
     commitBoard(bringToFront(boardForCollision(), id), "mutate")
   }, [boardForCollision, commitBoard, editor])
 
+  const sendSelectedBackward = useCallback(() => {
+    const id = selectedIdRef.current
+    if (!id || !editor) return
+    commitBoard(sendBackward(boardForCollision(), id), "mutate")
+  }, [boardForCollision, commitBoard, editor])
+
+  const alignSelected = useCallback(
+    (mode: "left" | "center" | "right") => {
+      const id = selectedIdRef.current
+      if (!id || !editor) return
+      const base = boardForCollision()
+      const it = base.items.find((i) => i.id === id)
+      if (!it || it.locked) return
+      const live = measuredSize.current.get(id)
+      const w = (live?.w ?? it.w) * it.scale
+      let x = it.x
+      if (mode === "left") x = 48
+      else if (mode === "center") x = snapArtboard((ARTBOARD_WIDTH - w) / 2)
+      else x = snapArtboard(ARTBOARD_WIDTH - w - 48)
+      x = Math.max(0, Math.min(x, ARTBOARD_WIDTH - 24))
+      commitBoard(
+        resolveCollisions(
+          { ...base, items: base.items.map((row) => (row.id === id ? { ...row, x } : row)) },
+          id,
+        ),
+        "mutate",
+      )
+    },
+    [boardForCollision, commitBoard, editor],
+  )
+
+  const toggleLock = useCallback(() => {
+    const id = selectedIdRef.current
+    if (!id || !editor) return
+    const it = boardRef.current.items.find((i) => i.id === id)
+    if (!it) return
+    patchItem(id, { locked: !it.locked })
+  }, [editor, patchItem])
+
   const nudgeFont = useCallback(
     (delta: number) => {
       const id = selectedIdRef.current
       if (!id || !editor) return
-      const base = boardRef.current
-      const it = base.items.find((i) => i.id === id)
-      if (!it || it.kind !== "text") return
-      commitBoard(
-        {
-          ...base,
-          items: base.items.map((row) =>
-            row.id === id ? { ...row, scale: clampScale(row.scale + delta) } : row,
-          ),
-        },
-        "mutate",
-      )
+      const it = boardRef.current.items.find((i) => i.id === id)
+      if (!it || isFixedSizeItem(it)) return
+      patchItem(id, { scale: clampScale(it.scale + delta) })
     },
-    [commitBoard, editor],
+    [editor, patchItem],
+  )
+
+  const setColor = useCallback(
+    (color: string) => {
+      const id = selectedIdRef.current
+      if (!id || !editor) return
+      patchItem(id, { color: color || undefined })
+    },
+    [editor, patchItem],
   )
 
   useEffect(() => {
@@ -335,6 +406,7 @@ export function SectionArtboard({
       const id = selectedIdRef.current
       if (!id) return
       const mod = e.metaKey || e.ctrlKey
+      const it = boardRef.current.items.find((i) => i.id === id)
 
       if (mod && e.key.toLowerCase() === "d") {
         e.preventDefault()
@@ -346,6 +418,8 @@ export function SectionArtboard({
         deleteSelected()
         return
       }
+      if (it?.locked) return
+
       const step = e.shiftKey ? 8 : 1
       let dx = 0
       let dy = 0
@@ -357,12 +431,12 @@ export function SectionArtboard({
 
       e.preventDefault()
       const base = boardForCollision()
-      const it = base.items.find((i) => i.id === id)
-      if (!it) return
+      const cur = base.items.find((i) => i.id === id)
+      if (!cur) return
       const patched = {
-        ...it,
-        x: snapArtboard(it.x + dx),
-        y: snapArtboard(Math.max(0, it.y + dy)),
+        ...cur,
+        x: snapArtboard(cur.x + dx),
+        y: snapArtboard(Math.max(0, cur.y + dy)),
       }
       commitBoard(
         resolveCollisions(
@@ -374,13 +448,7 @@ export function SectionArtboard({
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [
-    editor,
-    deleteSelected,
-    duplicateSelected,
-    boardForCollision,
-    commitBoard,
-  ])
+  }, [editor, deleteSelected, duplicateSelected, boardForCollision, commitBoard])
 
   const sorted = useMemo(
     () => [...board.items].sort((a, b) => a.z - b.z),
@@ -389,13 +457,17 @@ export function SectionArtboard({
 
   const startDrag = (
     it: ArtboardItem,
-    mode: "move" | "scale",
+    mode: DragMode,
     e: ReactPointerEvent,
     immediate = false,
   ) => {
     if (!editor) return
+    if (it.locked && mode === "move") {
+      selectItem(it.id)
+      return
+    }
     e.stopPropagation()
-    if (mode === "scale") e.preventDefault()
+    if (mode !== "move") e.preventDefault()
     selectItem(it.id)
     const measured = measuredSize.current.get(it.id)
     dragRef.current = {
@@ -403,29 +475,21 @@ export function SectionArtboard({
       mode,
       startX: e.clientX,
       startY: e.clientY,
-      orig: {
-        ...it,
-        h: measured?.h ?? it.h,
-      },
-      active: immediate || mode === "scale",
+      orig: { ...it, h: measured?.h ?? it.h },
+      active: immediate || mode !== "move",
       raised: false,
     }
-    if (immediate || mode === "scale") {
-      const raised = bringToFront(boardForCollision(), it.id)
-      boardRef.current = raised
-      commitBoard(raised, "drag")
+    if (immediate || mode !== "move") {
       dragRef.current.raised = true
-      const current = raised.items.find((i) => i.id === it.id) || it
-      dragRef.current.orig = {
-        ...current,
-        h: measured?.h ?? current.h,
-      }
     }
     setDragTick((n) => n + 1)
   }
 
   const selected = selectedId ? board.items.find((i) => i.id === selectedId) : null
-  const selectedIsText = Boolean(selected && selected.kind === "text")
+  const showFont = Boolean(selected && !isFixedSizeItem(selected))
+  const showColor = Boolean(
+    selected && (isFreeformItem(selected) ? selected.kind === "text" : !isFixedSizeItem(selected)),
+  )
 
   return (
     <div ref={wrapRef} className={cn("relative mx-auto w-full max-w-[1152px]", className)}>
@@ -468,39 +532,20 @@ export function SectionArtboard({
                   <FreeformText
                     item={it}
                     onChangeText={({ textZh, textEn }) => {
-                      const base = boardRef.current
-                      commitBoard(
-                        {
-                          ...base,
-                          items: base.items.map((row) =>
-                            row.id === it.id ? { ...row, textZh, textEn } : row,
-                          ),
-                        },
-                        "mutate",
-                      )
+                      patchItem(it.id, { textZh, textEn })
                     }}
                   />
                 ) : (
                   <FreeformImage
                     item={it}
-                    onChangeSrc={(src) => {
-                      const base = boardRef.current
-                      commitBoard(
-                        {
-                          ...base,
-                          items: base.items.map((row) =>
-                            row.id === it.id ? { ...row, src } : row,
-                          ),
-                        },
-                        "mutate",
-                      )
-                    }}
+                    onChangeSrc={(src) => patchItem(it.id, { src })}
                   />
                 )
               ) : null
             const child = builtin ?? freeform
             if (!child) return null
             const fixed = isFixedSizeItem(it)
+            const wrap = isWrapWidthItem(it)
             const live = measuredSize.current.get(it.id)
             const liveW = live?.w ?? it.w
             const liveH = live?.h ?? it.h
@@ -510,20 +555,23 @@ export function SectionArtboard({
               <div
                 key={it.id}
                 data-artboard-item={it.id}
+                data-selected={isSelected ? "true" : undefined}
                 ref={(el) => {
                   if (el) itemEls.current.set(it.id, el)
                   else itemEls.current.delete(it.id)
                 }}
-                className={cn("absolute", editor && "cursor-move", !fixed && "w-fit")}
+                className={cn(
+                  "absolute",
+                  editor && (it.locked ? "cursor-default" : "cursor-move"),
+                )}
                 style={{
                   left: it.x,
                   top: it.y,
-                  width: fixed ? it.w : undefined,
-                  maxWidth: fixed ? undefined : it.w,
-                  height: fixed ? it.h : "auto",
+                  ...shellStyle(it),
                   zIndex: isSelected ? 60 : it.z,
                   transform: `scale(${it.scale})`,
                   transformOrigin: "top left",
+                  color: it.color || undefined,
                 }}
                 onPointerDown={(e) => {
                   if (!editor) return
@@ -540,7 +588,16 @@ export function SectionArtboard({
                   startDrag(it, "move", e)
                 }}
               >
-                <div className={cn("overflow-visible", fixed ? "h-full w-full" : "w-fit max-w-full")}>
+                <div
+                  className={cn(
+                    "overflow-visible",
+                    fixed
+                      ? "h-full w-full"
+                      : wrap
+                        ? "w-full"
+                        : "w-max max-w-full [&>*]:!w-max [&>*]:max-w-full",
+                  )}
+                >
                   {child}
                 </div>
 
@@ -550,21 +607,46 @@ export function SectionArtboard({
                       onDelete={deleteSelected}
                       onDuplicate={duplicateSelected}
                       onBringForward={bringSelectedForward}
-                      showFont={selectedIsText}
+                      onSendBackward={sendSelectedBackward}
+                      onAlignLeft={() => alignSelected("left")}
+                      onAlignCenter={() => alignSelected("center")}
+                      onAlignRight={() => alignSelected("right")}
+                      onToggleLock={toggleLock}
+                      locked={Boolean(it.locked)}
+                      showFont={showFont}
                       onFontSmaller={() => nudgeFont(-0.08)}
                       onFontLarger={() => nudgeFont(0.08)}
+                      onColor={showColor ? setColor : undefined}
+                      color={it.color}
                     />
-                    <div className="pointer-events-none absolute -inset-1 rounded-lg border-2 border-brand" />
+                    <div
+                      className={cn(
+                        "pointer-events-none absolute -inset-1 rounded-lg border-2",
+                        it.locked ? "border-muted-foreground/50" : "border-brand",
+                      )}
+                    />
                     <span className="pointer-events-none absolute -top-6 left-0 whitespace-nowrap rounded bg-brand px-1.5 py-0.5 text-[10px] font-semibold text-brand-foreground">
-                      {Math.round(bounds.w)}×{Math.round(bounds.h)} · {Math.round(it.scale * 100)}%
+                      {Math.round(liveW)}×{Math.round(liveH)} · {Math.round(it.scale * 100)}%
+                      {it.locked ? " · 鎖" : ""}
                     </span>
-                    <button
-                      type="button"
-                      aria-label="縮放"
-                      title="拖曳縮放"
-                      className="absolute -bottom-2 -right-2 z-[70] size-3.5 cursor-nwse-resize rounded-full border-2 border-brand bg-background shadow"
-                      onPointerDown={(e) => startDrag(it, "scale", e, true)}
-                    />
+                    {!it.locked && !fixed ? (
+                      <button
+                        type="button"
+                        aria-label="改闊度"
+                        title="拖曳改換行／欄寬"
+                        className="absolute -right-1.5 top-1/2 z-[70] h-8 w-2 -translate-y-1/2 cursor-ew-resize rounded-full border-2 border-brand bg-background shadow"
+                        onPointerDown={(e) => startDrag(it, "resize-w", e, true)}
+                      />
+                    ) : null}
+                    {!it.locked ? (
+                      <button
+                        type="button"
+                        aria-label="縮放"
+                        title="拖曳縮放"
+                        className="absolute -bottom-2 -right-2 z-[70] size-3.5 cursor-nwse-resize rounded-full border-2 border-brand bg-background shadow"
+                        onPointerDown={(e) => startDrag(it, "scale", e, true)}
+                      />
+                    ) : null}
                   </>
                 ) : editor ? (
                   <div className="pointer-events-none absolute inset-0 rounded-md outline outline-1 outline-dashed outline-transparent hover:outline-brand/40" />

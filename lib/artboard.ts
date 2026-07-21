@@ -25,6 +25,10 @@ export type ArtboardItem = {
   textZh?: string
   textEn?: string
   src?: string
+  /** When true, item cannot be moved or keyboard-nudged. */
+  locked?: boolean
+  /** Optional text color override (CSS color). */
+  color?: string
 }
 
 export type SectionArtboardData = {
@@ -85,6 +89,20 @@ export function createImageWidget(partial?: Partial<ArtboardItem>): ArtboardItem
 
 export function isFreeformItem(it: ArtboardItem) {
   return it.kind === "text" || it.kind === "image"
+}
+
+/** Phone frames, store badges, step cards — keep explicit frame size. */
+export function isFixedSizeItem(it: ArtboardItem) {
+  if (isFreeformItem(it) && it.kind === "image") return true
+  return /image|store|mockup|screen/i.test(it.id) || /(?:^|\.)badge$/i.test(it.id)
+}
+
+/** Long copy / section headers that should fill column width and wrap. */
+export function isWrapWidthItem(it: ArtboardItem) {
+  if (isFixedSizeItem(it)) return false
+  if (isFreeformItem(it) && it.kind === "text") return true
+  if (/^(features|how|about|download)\.(title|subtitle)$/.test(it.id)) return true
+  return /\.(desc|subtitle|points|note|company)$/i.test(it.id)
 }
 
 
@@ -237,6 +255,8 @@ function normalizeItem(raw: unknown, fallback: ArtboardItem): ArtboardItem {
     textZh: typeof v.textZh === "string" ? v.textZh : fallback.textZh,
     textEn: typeof v.textEn === "string" ? v.textEn : fallback.textEn,
     src: typeof v.src === "string" ? v.src : fallback.src,
+    locked: typeof v.locked === "boolean" ? v.locked : fallback.locked,
+    color: typeof v.color === "string" ? v.color : fallback.color,
   }
 }
 

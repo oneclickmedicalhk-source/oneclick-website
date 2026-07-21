@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { ImagePlus, Type } from "lucide-react"
 import { useEditor } from "@/components/admin/editor-provider"
 import { useLanguage } from "@/components/language-provider"
@@ -26,16 +26,63 @@ function selectOnArtboard(sectionId: ArtboardSectionId, id: string) {
   )
 }
 
+function isTypingTarget(el: EventTarget | null) {
+  if (!(el instanceof HTMLElement)) return false
+  return Boolean(el.closest("input, textarea, [contenteditable=true], select"))
+}
+
 export function InsertToolbar({ activeSection }: { activeSection: PageSectionId }) {
   const editor = useEditor()
   const { settings } = useLanguage()
   const fileRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
+  const sectionId = activeSection as ArtboardSectionId
+  const sectionRef = useRef(sectionId)
+  sectionRef.current = sectionId
+
+  useEffect(() => {
+    if (!editor) return
+    const onPaste = async (e: ClipboardEvent) => {
+      if (isTypingTarget(e.target)) return
+      const file = [...(e.clipboardData?.items || [])]
+        .find((i) => i.type.startsWith("image/"))
+        ?.getAsFile()
+      if (!file) return
+      e.preventDefault()
+      const sid = sectionRef.current
+      const board =
+        editor.content.settings.artboards?.[sid] || createDefaultArtboards()[sid]
+      setBusy(true)
+      setError("")
+      try {
+        const data = await uploadImageFile(file, { alt: "貼上圖片" })
+        if (!data?.url) throw new Error("上傳失敗")
+        const widget = createImageWidget({
+          x: 64,
+          y: 48,
+          w: 320,
+          h: 220,
+          src: data.url,
+        })
+        editor.patchSettings(
+          ["artboards", sid],
+          addItemToArtboard(board, widget),
+          "mutate",
+        )
+        selectOnArtboard(sid, widget.id)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "貼上失敗")
+      } finally {
+        setBusy(false)
+      }
+    }
+    window.addEventListener("paste", onPaste)
+    return () => window.removeEventListener("paste", onPaste)
+  }, [editor])
 
   if (!editor) return null
 
-  const sectionId = activeSection as ArtboardSectionId
   const board = settings.artboards?.[sectionId] || createDefaultArtboards()[sectionId]
 
   const commit = (next: typeof board) => {
@@ -86,7 +133,7 @@ export function InsertToolbar({ activeSection }: { activeSection: PageSectionId 
   return (
     <div className="flex flex-wrap items-center gap-2">
       <span className="text-[11px] text-muted-foreground">
-        加到「{SECTION_LABELS[activeSection]}」
+        加到「{SECTION_LABELS[activeSection]}」· ⌘V 貼圖
       </span>
       <button
         type="button"

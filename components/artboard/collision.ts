@@ -102,3 +102,11 @@ export function bringToFront(board: SectionArtboardData, id: string): SectionArt
     items: board.items.map((i) => (i.id === id ? { ...i, z: maxZ + 1 } : i)),
   }
 }
+
+export function sendBackward(board: SectionArtboardData, id: string): SectionArtboardData {
+  const minZ = board.items.reduce((m, i) => Math.min(m, i.z), Number.POSITIVE_INFINITY)
+  return {
+    ...board,
+    items: board.items.map((i) => (i.id === id ? { ...i, z: minZ - 1 } : i)),
+  }
+}

@@ -83,7 +83,7 @@ export function Hero() {
                 <a
                   href="#features"
                   onClick={(e) => handleAnchorClick(e, "#features")}
-                  className="inline-flex h-12 w-full items-center justify-center rounded-full border border-border bg-background px-7 text-base font-semibold text-foreground"
+                  className="inline-flex h-12 w-fit items-center justify-center rounded-full border border-border bg-background px-7 text-base font-semibold text-foreground"
                 >
                   <EditableText path={["hero", "ctaSecondary"]} value={t.hero.ctaSecondary} />
                 </a>

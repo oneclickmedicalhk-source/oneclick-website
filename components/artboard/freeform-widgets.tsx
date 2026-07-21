@@ -23,7 +23,12 @@ export function FreeformText({
 
   if (!editor) {
     return (
-      <p className="whitespace-pre-wrap text-lg font-semibold leading-snug text-foreground">{value}</p>
+      <p
+        className="whitespace-pre-wrap text-lg font-semibold leading-snug"
+        style={{ color: item.color || undefined }}
+      >
+        {value}
+      </p>
     )
   }
 
@@ -33,7 +38,7 @@ export function FreeformText({
         autoFocus
         value={draft}
         rows={Math.min(6, Math.max(2, draft.split("\n").length + 1))}
-        className="w-full resize-y rounded-md border border-brand bg-background px-2 py-1 text-lg font-semibold leading-snug outline-none ring-2 ring-brand/25"
+        className="w-full resize-y rounded-md border border-brand bg-background px-2 py-1 text-lg font-semibold leading-snug text-foreground outline-none ring-2 ring-brand/25"
         onClick={(e) => e.stopPropagation()}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={() => {
@@ -54,8 +59,10 @@ export function FreeformText({
   return (
     <p
       title="點擊編輯文字"
+      style={{ color: item.color || undefined }}
       className={cn(
-        "min-h-[1.5em] whitespace-pre-wrap text-lg font-semibold leading-snug text-foreground",
+        "min-h-[1.5em] whitespace-pre-wrap text-lg font-semibold leading-snug",
+        !item.color && "text-foreground",
         "cursor-text rounded-sm outline-offset-2 hover:outline hover:outline-2 hover:outline-dashed hover:outline-brand/55",
       )}
       onClick={(e) => {
