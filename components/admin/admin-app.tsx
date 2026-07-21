@@ -20,6 +20,7 @@ import {
   SectionPresenceBar,
   useActivePageSection,
 } from "@/components/admin/section-presence"
+import { InsertToolbar } from "@/components/admin/insert-toolbar"
 import type { PageSectionId } from "@/lib/content"
 
 function stripMeta(data: SiteContent & { _meta?: { dbConnected?: boolean } }): {
@@ -49,7 +50,10 @@ function VisualCanvas({
   return (
     <div className="relative flex flex-1 flex-col">
       <div className="sticky top-[57px] z-10 mx-4 mt-2 sm:mx-6 lg:top-[61px]">
-        <SectionPresenceBar active={activeSection} />
+        <SectionPresenceBar
+          active={activeSection}
+          actions={<InsertToolbar activeSection={activeSection} />}
+        />
       </div>
       <div className="flex justify-center bg-muted/50 p-4 sm:p-6">
         <div
@@ -59,7 +63,7 @@ function VisualCanvas({
           }`}
         >
           <div className="border-b border-border bg-muted/40 px-3 py-2 text-center text-[11px] font-medium text-muted-foreground">
-            逐件拖移／縮放 · 撞位自動推開 · ⌘Z 上一步 · 記得儲存
+            加文字／加圖片 · 拖移縮放 · ⌘Z 上一步 · 記得儲存
           </div>
           <SiteHeader />
           <main>

@@ -1,0 +1,104 @@
+"use client"
+
+import { useRef, useState } from "react"
+import { ImagePlus, Type } from "lucide-react"
+import { useEditor } from "@/components/admin/editor-provider"
+import { useLanguage } from "@/components/language-provider"
+import { uploadImageFile } from "@/components/admin/primitives"
+import {
+  addItemToArtboard,
+  createDefaultArtboards,
+  createImageWidget,
+  createTextWidget,
+  type ArtboardSectionId,
+} from "@/lib/artboard"
+import { SECTION_LABELS, type PageSectionId } from "@/lib/content"
+
+export function InsertToolbar({ activeSection }: { activeSection: PageSectionId }) {
+  const editor = useEditor()
+  const { settings } = useLanguage()
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState("")
+
+  if (!editor) return null
+
+  const sectionId = activeSection as ArtboardSectionId
+  const board = settings.artboards?.[sectionId] || createDefaultArtboards()[sectionId]
+
+  const commit = (next: typeof board) => {
+    editor.patchSettings(["artboards", sectionId], next)
+  }
+
+  const addText = () => {
+    const widget = createTextWidget({
+      x: 64,
+      y: 48,
+      w: 360,
+      h: 72,
+    })
+    commit(addItemToArtboard(board, widget))
+    setError("")
+  }
+
+  const addPhoto = () => {
+    setError("")
+    fileRef.current?.click()
+  }
+
+  const onFile = async (file: File | undefined) => {
+    if (!file) return
+    setBusy(true)
+    setError("")
+    try {
+      const data = await uploadImageFile(file, { alt: "自訂圖片" })
+      if (!data?.url) throw new Error("上傳失敗")
+      const widget = createImageWidget({
+        x: 64,
+        y: 48,
+        w: 320,
+        h: 220,
+        src: data.url,
+      })
+      commit(addItemToArtboard(board, widget))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "上傳失敗")
+    } finally {
+      setBusy(false)
+      if (fileRef.current) fileRef.current.value = ""
+    }
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="text-[11px] text-muted-foreground">
+        加到「{SECTION_LABELS[activeSection]}」
+      </span>
+      <button
+        type="button"
+        onClick={addText}
+        className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 text-xs font-medium text-foreground shadow-sm hover:bg-muted"
+      >
+        <Type className="size-3.5" />
+        加文字
+      </button>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={addPhoto}
+        className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 text-xs font-medium text-foreground shadow-sm hover:bg-muted disabled:opacity-60"
+      >
+        <ImagePlus className="size-3.5" />
+        {busy ? "上傳中…" : "加圖片"}
+      </button>
+      {error ? <span className="text-[11px] text-destructive">{error}</span> : null}
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        className="pointer-events-none absolute h-px w-px overflow-hidden opacity-0"
+        onChange={(e) => onFile(e.target.files?.[0])}
+      />
+    </div>
+  )
+}

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 import { SECTION_LABELS, type PageSectionId } from "@/lib/content"
 
 const SECTION_DOM: { key: PageSectionId; selector: string }[] = [
@@ -68,14 +68,23 @@ export function useActivePageSection(rootSelector = "#visual-canvas") {
   return active
 }
 
-export function SectionPresenceBar({ active }: { active: PageSectionId }) {
+export function SectionPresenceBar({
+  active,
+  actions,
+}: {
+  active: PageSectionId
+  actions?: ReactNode
+}) {
   return (
-    <div className="sticky top-0 z-30 border-b border-border bg-background/95 px-4 py-2 backdrop-blur">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-xs text-muted-foreground">而家編輯緊</p>
-        <span className="inline-flex items-center rounded-full bg-brand/10 px-3 py-1 text-xs font-semibold text-brand">
-          {SECTION_LABELS[active]}
-        </span>
+    <div className="z-30 rounded-xl border border-border bg-background/95 px-4 py-2 shadow-sm backdrop-blur">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <p className="text-xs text-muted-foreground">而家編輯緊</p>
+          <span className="inline-flex items-center rounded-full bg-brand/10 px-3 py-1 text-xs font-semibold text-brand">
+            {SECTION_LABELS[active]}
+          </span>
+        </div>
+        {actions}
       </div>
     </div>
   )

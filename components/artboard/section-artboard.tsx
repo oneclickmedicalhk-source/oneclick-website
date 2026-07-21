@@ -10,15 +10,18 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react"
-import { RotateCcw } from "lucide-react"
+import { RotateCcw, Trash2 } from "lucide-react"
 import { useEditor } from "@/components/admin/editor-provider"
 import { useLanguage } from "@/components/language-provider"
 import { bringToFront, resolveCollisions } from "@/components/artboard/collision"
+import { FreeformImage, FreeformText } from "@/components/artboard/freeform-widgets"
 import {
   ARTBOARD_WIDTH,
   clampScale,
   createDefaultArtboards,
+  isFreeformItem,
   itemBounds,
+  removeItemFromArtboard,
   snapArtboard,
   type ArtboardItem,
   type ArtboardSectionId,
@@ -252,11 +255,43 @@ export function SectionArtboard({
           }}
         >
           {sorted.map((it) => {
-            const child = partMap.get(it.id)
+            const builtin = partMap.get(it.id)
+            const freeform =
+              !builtin && isFreeformItem(it) ? (
+                it.kind === "text" ? (
+                  <FreeformText
+                    item={it}
+                    onChangeText={({ textZh, textEn }) => {
+                      const base = boardRef.current
+                      commitBoard({
+                        ...base,
+                        items: base.items.map((row) =>
+                          row.id === it.id ? { ...row, textZh, textEn } : row,
+                        ),
+                      })
+                    }}
+                  />
+                ) : (
+                  <FreeformImage
+                    item={it}
+                    onChangeSrc={(src) => {
+                      const base = boardRef.current
+                      commitBoard({
+                        ...base,
+                        items: base.items.map((row) =>
+                          row.id === it.id ? { ...row, src } : row,
+                        ),
+                      })
+                    }}
+                  />
+                )
+              ) : null
+            const child = builtin ?? freeform
             if (!child) return null
             const liveH = measuredH.current.get(it.id) ?? it.h
             const bounds = itemBounds({ ...it, h: liveH })
             const selected = Boolean(editor && selectedId === it.id)
+            const freeformItem = isFreeformItem(it)
             return (
               <div
                 key={it.id}
@@ -270,7 +305,7 @@ export function SectionArtboard({
                   left: it.x,
                   top: it.y,
                   width: it.w,
-                  height: "auto",
+                  height: freeformItem && it.kind === "image" ? it.h : "auto",
                   zIndex: selected ? 60 : it.z,
                   transform: `scale(${it.scale})`,
                   transformOrigin: "top left",
@@ -298,29 +333,48 @@ export function SectionArtboard({
                     <span className="pointer-events-none absolute -top-6 left-0 whitespace-nowrap rounded bg-brand px-1.5 py-0.5 text-[10px] font-semibold text-brand-foreground">
                       {Math.round(bounds.w)}×{Math.round(bounds.h)} · {Math.round(it.scale * 100)}%
                     </span>
-                    <button
-                      type="button"
-                      title="還原此物件"
-                      className="absolute -right-2 -top-2 z-[70] grid size-6 place-items-center rounded-full border border-border bg-background text-muted-foreground shadow hover:text-foreground"
-                      onPointerDown={(e) => e.stopPropagation()}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        const def = defaults.items.find((d) => d.id === it.id)
-                        if (!def) return
-                        const base = boardRef.current
-                        const nextItems = base.items.map((row) =>
-                          row.id === it.id ? { ...def } : row,
-                        )
-                        commitBoard(
-                          resolveCollisions(
-                            applyMeasuredHeights({ ...base, items: nextItems }, measuredH.current),
-                            it.id,
-                          ),
-                        )
-                      }}
-                    >
-                      <RotateCcw className="size-3" />
-                    </button>
+                    {freeformItem ? (
+                      <button
+                        type="button"
+                        title="刪除此物件"
+                        className="absolute -right-2 -top-2 z-[70] grid size-6 place-items-center rounded-full border border-border bg-background text-destructive shadow hover:bg-muted"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          commitBoard(removeItemFromArtboard(boardRef.current, it.id))
+                          setSelectedId(null)
+                        }}
+                      >
+                        <Trash2 className="size-3" />
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        title="還原此物件"
+                        className="absolute -right-2 -top-2 z-[70] grid size-6 place-items-center rounded-full border border-border bg-background text-muted-foreground shadow hover:text-foreground"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          const def = defaults.items.find((d) => d.id === it.id)
+                          if (!def) return
+                          const base = boardRef.current
+                          const nextItems = base.items.map((row) =>
+                            row.id === it.id ? { ...def } : row,
+                          )
+                          commitBoard(
+                            resolveCollisions(
+                              applyMeasuredHeights(
+                                { ...base, items: nextItems },
+                                measuredH.current,
+                              ),
+                              it.id,
+                            ),
+                          )
+                        }}
+                      >
+                        <RotateCcw className="size-3" />
+                      </button>
+                    )}
                     <button
                       type="button"
                       aria-label="縮放"

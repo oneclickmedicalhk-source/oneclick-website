@@ -10,6 +10,8 @@ export type ArtboardSectionId =
   | "about"
   | "download"
 
+export type ArtboardItemKind = "text" | "image"
+
 export type ArtboardItem = {
   id: string
   x: number
@@ -18,6 +20,11 @@ export type ArtboardItem = {
   h: number
   scale: number
   z: number
+  /** Freeform widgets added by the editor (not built-in section parts). */
+  kind?: ArtboardItemKind
+  textZh?: string
+  textEn?: string
+  src?: string
 }
 
 export type SectionArtboardData = {
@@ -38,6 +45,46 @@ function item(
 ): ArtboardItem {
   return { id, x, y, w, h, scale, z }
 }
+
+export function newWidgetId(kind: ArtboardItemKind) {
+  return `widget.${kind}.${Date.now().toString(36)}.${Math.random().toString(36).slice(2, 6)}`
+}
+
+export function createTextWidget(partial?: Partial<ArtboardItem>): ArtboardItem {
+  return {
+    id: newWidgetId("text"),
+    x: 80,
+    y: 80,
+    w: 320,
+    h: 80,
+    scale: 1,
+    z: 50,
+    kind: "text",
+    textZh: "新文字",
+    textEn: "New text",
+    ...partial,
+  }
+}
+
+export function createImageWidget(partial?: Partial<ArtboardItem>): ArtboardItem {
+  return {
+    id: newWidgetId("image"),
+    x: 80,
+    y: 80,
+    w: 280,
+    h: 200,
+    scale: 1,
+    z: 50,
+    kind: "image",
+    src: "/placeholder.svg",
+    ...partial,
+  }
+}
+
+export function isFreeformItem(it: ArtboardItem) {
+  return it.kind === "text" || it.kind === "image"
+}
+
 
 export function createDefaultArtboards(): ArtboardsMap {
   const featuresItems: ArtboardItem[] = [
@@ -178,7 +225,23 @@ function normalizeItem(raw: unknown, fallback: ArtboardItem): ArtboardItem {
         ? clampScale(v.scale)
         : fallback.scale,
     z: typeof v.z === "number" && Number.isFinite(v.z) ? v.z : fallback.z,
+    kind: v.kind === "text" || v.kind === "image" ? v.kind : fallback.kind,
+    textZh: typeof v.textZh === "string" ? v.textZh : fallback.textZh,
+    textEn: typeof v.textEn === "string" ? v.textEn : fallback.textEn,
+    src: typeof v.src === "string" ? v.src : fallback.src,
   }
+}
+
+function normalizeFreeformItem(raw: unknown): ArtboardItem | null {
+  if (!raw || typeof raw !== "object") return null
+  const v = raw as Partial<ArtboardItem>
+  if (v.kind !== "text" && v.kind !== "image") return null
+  if (typeof v.id !== "string" || !v.id.startsWith("widget.")) return null
+  const base =
+    v.kind === "text"
+      ? createTextWidget({ id: v.id })
+      : createImageWidget({ id: v.id })
+  return normalizeItem(v, base)
 }
 
 const OBSOLETE_ITEM_ID =
@@ -198,14 +261,20 @@ export function normalizeArtboards(raw: unknown): ArtboardsMap {
       out[sectionId] = structuredClone(def)
       continue
     }
+    const rawItems = Array.isArray(src.items) ? src.items : []
     const byId = new Map(
-      (Array.isArray(src.items) ? src.items : [])
+      rawItems
         .filter((i): i is ArtboardItem => !!i && typeof (i as ArtboardItem).id === "string")
         .filter((i) => !OBSOLETE_ITEM_ID.test(i.id))
         .map((i) => [i.id, i]),
     )
     const items = def.items.map((fallback) => normalizeItem(byId.get(fallback.id), fallback))
-    // Do not keep unknown legacy extras — only known default ids
+    for (const rawItem of rawItems) {
+      const free = normalizeFreeformItem(rawItem)
+      if (!free) continue
+      if (items.some((i) => i.id === free.id)) continue
+      items.push(free)
+    }
     const height =
       typeof src.height === "number" && Number.isFinite(src.height)
         ? Math.max(320, src.height)
@@ -213,4 +282,27 @@ export function normalizeArtboards(raw: unknown): ArtboardsMap {
     out[sectionId] = { height, items }
   }
   return out
+}
+
+export function addItemToArtboard(
+  board: SectionArtboardData,
+  item: ArtboardItem,
+): SectionArtboardData {
+  const maxZ = board.items.reduce((m, i) => Math.max(m, i.z), 0)
+  const next = { ...item, z: Math.max(item.z, maxZ + 1) }
+  const bottom = itemBounds(next).b
+  return {
+    height: Math.max(board.height, snapArtboard(bottom + 48)),
+    items: [...board.items, next],
+  }
+}
+
+export function removeItemFromArtboard(
+  board: SectionArtboardData,
+  id: string,
+): SectionArtboardData {
+  return {
+    ...board,
+    items: board.items.filter((i) => i.id !== id),
+  }
 }
