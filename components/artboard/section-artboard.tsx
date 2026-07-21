@@ -58,18 +58,24 @@ function useContainerScale(ref: React.RefObject<HTMLDivElement | null>) {
   return scale
 }
 
-function applyMeasuredHeights(
+function applyMeasuredSizes(
   board: SectionArtboardData,
-  measured: Map<string, number>,
+  measured: Map<string, { w: number; h: number }>,
 ): SectionArtboardData {
   return {
     ...board,
     items: board.items.map((it) => {
-      const h = measured.get(it.id)
-      if (!h || Math.abs(h - it.h) < 2) return it
-      return { ...it, h }
+      const m = measured.get(it.id)
+      if (!m) return it
+      // Height hugs content for collision; width stays as wrap/max constraint (CSS w-fit).
+      if (m.h && Math.abs(m.h - it.h) >= 2) return { ...it, h: m.h }
+      return it
     }),
   }
+}
+
+function isFixedSizeItem(it: ArtboardItem) {
+  return (isFreeformItem(it) && it.kind === "image") || /\.image$/.test(it.id)
 }
 
 function isTypingTarget(el: EventTarget | null) {
@@ -106,7 +112,7 @@ export function SectionArtboard({
     raised: boolean
   }>(null)
   const [, setDragTick] = useState(0)
-  const measuredH = useRef(new Map<string, number>())
+  const measuredSize = useRef(new Map<string, { w: number; h: number }>())
   const itemEls = useRef(new Map<string, HTMLDivElement>())
   const [, setMeasureTick] = useState(0)
 
@@ -134,7 +140,7 @@ export function SectionArtboard({
   )
 
   const boardForCollision = useCallback(() => {
-    return applyMeasuredHeights(boardRef.current, measuredH.current)
+    return applyMeasuredSizes(boardRef.current, measuredSize.current)
   }, [])
 
   const selectItem = useCallback((id: string | null) => {
@@ -152,11 +158,17 @@ export function SectionArtboard({
       for (const entry of entries) {
         const id = (entry.target as HTMLElement).dataset.artboardItem
         if (!id) continue
-        const h = Math.ceil((entry.target as HTMLElement).offsetHeight)
-        if (!h) continue
-        const prev = measuredH.current.get(id)
-        if (prev === undefined || Math.abs(prev - h) >= 2) {
-          measuredH.current.set(id, h)
+        const el = entry.target as HTMLElement
+        const w = Math.ceil(el.offsetWidth)
+        const h = Math.ceil(el.offsetHeight)
+        if (!w || !h) continue
+        const prev = measuredSize.current.get(id)
+        if (
+          !prev ||
+          Math.abs(prev.w - w) >= 2 ||
+          Math.abs(prev.h - h) >= 2
+        ) {
+          measuredSize.current.set(id, { w, h })
           changed = true
         }
       }
@@ -197,7 +209,7 @@ export function SectionArtboard({
           if (current) {
             drag.orig = {
               ...current,
-              h: measuredH.current.get(drag.id) ?? current.h,
+              h: measuredSize.current.get(drag.id)?.h ?? current.h,
             }
           }
         }
@@ -209,9 +221,11 @@ export function SectionArtboard({
       let nextItems: ArtboardItem[]
       let nextGuides: SnapGuide[] = []
       if (drag.mode === "move") {
+        const size = measuredSize.current.get(drag.id)
         const patched = {
           ...drag.orig,
-          h: measuredH.current.get(drag.id) ?? drag.orig.h,
+          // Keep stored w as wrap max; only hug height into the model.
+          h: size?.h ?? drag.orig.h,
           x: drag.orig.x + dx,
           y: Math.max(0, drag.orig.y + dy),
         }
@@ -219,10 +233,11 @@ export function SectionArtboard({
         nextGuides = snapped.guides
         nextItems = base.items.map((it) => (it.id === drag.id ? snapped.item : it))
       } else {
+        const size = measuredSize.current.get(drag.id)
         const delta = (dx + dy) / 220
         const patched = {
           ...drag.orig,
-          h: measuredH.current.get(drag.id) ?? drag.orig.h,
+          h: size?.h ?? drag.orig.h,
           scale: clampScale(drag.orig.scale + delta),
         }
         nextItems = base.items.map((it) => (it.id === drag.id ? patched : it))
@@ -236,15 +251,20 @@ export function SectionArtboard({
       const drag = dragRef.current
       if (drag?.active) {
         const base = boardRef.current
-        const h = measuredH.current.get(drag.id)
-        if (h && Math.abs((base.items.find((i) => i.id === drag.id)?.h ?? 0) - h) >= 2) {
-          commitBoard(
-            {
-              ...base,
-              items: base.items.map((it) => (it.id === drag.id ? { ...it, h } : it)),
-            },
-            "drag",
-          )
+        const size = measuredSize.current.get(drag.id)
+        if (size) {
+          const cur = base.items.find((i) => i.id === drag.id)
+          if (cur && Math.abs(cur.h - size.h) >= 2) {
+            commitBoard(
+              {
+                ...base,
+                items: base.items.map((it) =>
+                  it.id === drag.id ? { ...it, h: size.h } : it,
+                ),
+              },
+              "drag",
+            )
+          }
         }
       }
       setGuides([])
@@ -375,13 +395,16 @@ export function SectionArtboard({
     e.stopPropagation()
     if (mode === "scale") e.preventDefault()
     selectItem(it.id)
-    const measured = measuredH.current.get(it.id)
+    const measured = measuredSize.current.get(it.id)
     dragRef.current = {
       id: it.id,
       mode,
       startX: e.clientX,
       startY: e.clientY,
-      orig: { ...it, h: measured ?? it.h },
+      orig: {
+        ...it,
+        h: measured?.h ?? it.h,
+      },
       active: immediate || mode === "scale",
       raised: false,
     }
@@ -391,7 +414,10 @@ export function SectionArtboard({
       commitBoard(raised, "drag")
       dragRef.current.raised = true
       const current = raised.items.find((i) => i.id === it.id) || it
-      dragRef.current.orig = { ...current, h: measured ?? current.h }
+      dragRef.current.orig = {
+        ...current,
+        h: measured?.h ?? current.h,
+      }
     }
     setDragTick((n) => n + 1)
   }
@@ -472,10 +498,12 @@ export function SectionArtboard({
               ) : null
             const child = builtin ?? freeform
             if (!child) return null
-            const liveH = measuredH.current.get(it.id) ?? it.h
-            const bounds = itemBounds({ ...it, h: liveH })
+            const fixed = isFixedSizeItem(it)
+            const live = measuredSize.current.get(it.id)
+            const liveW = live?.w ?? it.w
+            const liveH = live?.h ?? it.h
+            const bounds = itemBounds({ ...it, w: liveW, h: liveH })
             const isSelected = Boolean(editor && selectedId === it.id)
-            const freeformItem = isFreeformItem(it)
             return (
               <div
                 key={it.id}
@@ -484,12 +512,13 @@ export function SectionArtboard({
                   if (el) itemEls.current.set(it.id, el)
                   else itemEls.current.delete(it.id)
                 }}
-                className={cn("absolute", editor && "cursor-move")}
+                className={cn("absolute", editor && "cursor-move", !fixed && "w-fit")}
                 style={{
                   left: it.x,
                   top: it.y,
-                  width: it.w,
-                  height: freeformItem && it.kind === "image" ? it.h : "auto",
+                  width: fixed ? it.w : undefined,
+                  maxWidth: fixed ? undefined : it.w,
+                  height: fixed ? it.h : "auto",
                   zIndex: isSelected ? 60 : it.z,
                   transform: `scale(${it.scale})`,
                   transformOrigin: "top left",
@@ -509,7 +538,9 @@ export function SectionArtboard({
                   startDrag(it, "move", e)
                 }}
               >
-                <div className="w-full overflow-visible">{child}</div>
+                <div className={cn("overflow-visible", fixed ? "h-full w-full" : "w-fit max-w-full")}>
+                  {child}
+                </div>
 
                 {isSelected ? (
                   <>

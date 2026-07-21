@@ -92,7 +92,7 @@ export function HowItWorks() {
                   onClick={(e) => {
                     if (editor) e.preventDefault()
                   }}
-                  className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-brand px-7 text-base font-semibold text-brand-foreground shadow-md"
+                  className="inline-flex h-12 w-fit items-center justify-center gap-2 rounded-full bg-brand px-7 text-base font-semibold text-brand-foreground shadow-md"
                 >
                   <EditableText path={["how", "cta"]} value={t.how.cta} />
                   <ArrowRight className="size-4" aria-hidden="true" />

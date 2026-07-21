@@ -90,7 +90,7 @@ export function Features() {
             onClick={(e) => {
               if (editor) e.preventDefault()
             }}
-            className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-brand px-6 text-base font-semibold text-brand-foreground shadow-sm"
+            className="inline-flex h-12 w-fit items-center justify-center gap-2 rounded-full bg-brand px-6 text-base font-semibold text-brand-foreground shadow-sm"
           >
             <EditableText path={["pillars", "items", i, "cta"]} value={item.cta} />
             <ArrowRight className="size-4" aria-hidden="true" />

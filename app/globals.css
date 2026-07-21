@@ -181,3 +181,11 @@ html {
     @apply font-sans;
   }
 }
+
+/* Admin editor: keep light/white copy visible on light canvas */
+.editor-text-readable {
+  text-shadow:
+    0 0 1.5px rgb(0 0 0 / 28%),
+    0 0 0.5px rgb(0 0 0 / 40%);
+}
+

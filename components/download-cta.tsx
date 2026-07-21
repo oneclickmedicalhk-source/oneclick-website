@@ -53,7 +53,7 @@ export function DownloadCta() {
                     onClick={(e) => {
                       if (editor) e.preventDefault()
                     }}
-                    className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-brand px-7 text-base font-semibold text-brand-foreground shadow-md"
+                    className="inline-flex h-12 w-fit items-center justify-center gap-2 rounded-full bg-brand px-7 text-base font-semibold text-brand-foreground shadow-md"
                   >
                     <EditableText path={["download", "cta"]} value={t.download.cta} />
                     <ArrowRight className="size-4" aria-hidden="true" />
@@ -70,7 +70,7 @@ export function DownloadCta() {
                     onClick={(e) => {
                       if (editor) e.preventDefault()
                     }}
-                    className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full border border-border bg-background px-5 text-sm font-semibold text-foreground"
+                    className="inline-flex h-12 w-fit items-center justify-center gap-2 rounded-full border border-border bg-background px-5 text-sm font-semibold text-foreground"
                     aria-label="App Store"
                   >
                     <Apple className="size-5" aria-hidden="true" />
@@ -88,7 +88,7 @@ export function DownloadCta() {
                     onClick={(e) => {
                       if (editor) e.preventDefault()
                     }}
-                    className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full border border-border bg-background px-5 text-sm font-semibold text-foreground"
+                    className="inline-flex h-12 w-fit items-center justify-center gap-2 rounded-full border border-border bg-background px-5 text-sm font-semibold text-foreground"
                     aria-label="Google Play"
                   >
                     <Play className="size-5" aria-hidden="true" />

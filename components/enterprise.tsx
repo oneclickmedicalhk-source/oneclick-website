@@ -79,7 +79,7 @@ export function Enterprise() {
                     onClick={(e) => {
                       if (editor) e.preventDefault()
                     }}
-                    className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-brand-foreground px-7 text-base font-semibold text-brand"
+                    className="inline-flex h-12 w-fit items-center justify-center gap-2 rounded-full bg-brand-foreground px-7 text-base font-semibold text-brand"
                   >
                     <EditableText path={["enterprise", "cta"]} value={t.enterprise.cta} />
                     <ArrowRight className="size-4" aria-hidden="true" />

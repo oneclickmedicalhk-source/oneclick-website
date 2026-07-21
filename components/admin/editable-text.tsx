@@ -40,6 +40,11 @@ export function EditableText({
 
   const Comp = Tag
 
+  // Editing chrome must win over parent text-white / text-brand-foreground
+  // so light copy stays readable on the white input surface.
+  const editingChrome =
+    "border border-brand bg-background text-foreground caret-foreground outline-none ring-2 ring-brand/25"
+
   if (editing) {
     if (multiline) {
       return (
@@ -58,7 +63,8 @@ export function EditableText({
           }}
           className={cn(
             className,
-            "w-full resize-y rounded-md border border-brand bg-background px-2 py-1 outline-none ring-2 ring-brand/25",
+            "w-full resize-y rounded-md px-2 py-1",
+            editingChrome,
           )}
         />
       )
@@ -79,7 +85,8 @@ export function EditableText({
         }}
         className={cn(
           className,
-          "w-full min-w-[4ch] rounded-md border border-brand bg-background px-2 py-0.5 outline-none ring-2 ring-brand/25",
+          "w-full min-w-[4ch] rounded-md px-2 py-0.5",
+          editingChrome,
         )}
       />
     )
@@ -91,6 +98,8 @@ export function EditableText({
         className,
         "cursor-text rounded-sm outline-offset-2 transition-[outline]",
         "hover:outline hover:outline-2 hover:outline-dashed hover:outline-brand/55",
+        // Soft halo so white / near-white copy stays visible on light canvas
+        "editor-text-readable",
       )}
       title="點擊編輯"
       onClick={(e: React.MouseEvent) => {
