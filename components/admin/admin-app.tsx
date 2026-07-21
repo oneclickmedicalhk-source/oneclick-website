@@ -38,7 +38,7 @@ function VisualCanvas({ viewport }: { viewport: "desktop" | "mobile" }) {
         }`}
       >
         <div className="border-b border-border bg-muted/40 px-3 py-2 text-center text-[11px] font-medium text-muted-foreground">
-          點選物件拖移 · 右下角縮放（連字）· 撞位自動推開 · 側欄跳 Section · 記得儲存
+          點選拖移 · 右下角縮放 · 撞位自動推開 · ⌘Z／Ctrl+Z 上一步 · 記得儲存
         </div>
         <SiteHeader />
         <main>
@@ -139,6 +139,10 @@ function AdminShell({
           viewport={viewport}
           onViewportChange={setViewport}
           onSave={handleSave}
+          onUndo={editor.undo}
+          onRedo={editor.redo}
+          canUndo={editor.canUndo}
+          canRedo={editor.canRedo}
           onLogout={handleLogout}
           onMenu={() => setSidebarOpen(true)}
         />

@@ -1,6 +1,6 @@
 "use client"
 
-import { Check, Eye, LogOut, Menu, Monitor, Smartphone } from "lucide-react"
+import { Check, Eye, LogOut, Menu, Monitor, Redo2, Smartphone, Undo2 } from "lucide-react"
 import type { Lang } from "@/lib/i18n"
 import { Segmented } from "@/components/admin/primitives"
 
@@ -15,6 +15,10 @@ export function Topbar({
   viewport,
   onViewportChange,
   onSave,
+  onUndo,
+  onRedo,
+  canUndo,
+  canRedo,
   onLogout,
   onMenu,
 }: {
@@ -28,6 +32,10 @@ export function Topbar({
   viewport: "desktop" | "mobile"
   onViewportChange: (v: "desktop" | "mobile") => void
   onSave: () => void
+  onUndo?: () => void
+  onRedo?: () => void
+  canUndo?: boolean
+  canRedo?: boolean
   onLogout?: () => void
   onMenu: () => void
 }) {
@@ -36,6 +44,9 @@ export function Topbar({
     : dirty
       ? { text: "未儲存變更", className: "bg-gold/15 text-gold-foreground", dot: "bg-gold-foreground" }
       : { text: saved ? "已儲存" : "已儲存", className: "bg-success/10 text-success", dot: "bg-success" }
+
+  const isMac =
+    typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || "")
 
   return (
     <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-border bg-background/90 px-4 py-3 backdrop-blur sm:px-6">
@@ -56,6 +67,29 @@ export function Topbar({
       </div>
 
       <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-0.5 rounded-lg border border-border p-0.5">
+          <button
+            type="button"
+            onClick={onUndo}
+            disabled={!canUndo}
+            title={isMac ? "Undo ⌘Z" : "Undo Ctrl+Z"}
+            aria-label="上一步"
+            className="grid size-8 place-items-center rounded-md text-foreground transition-colors hover:bg-muted disabled:opacity-40"
+          >
+            <Undo2 className="size-4" />
+          </button>
+          <button
+            type="button"
+            onClick={onRedo}
+            disabled={!canRedo}
+            title={isMac ? "Redo ⇧⌘Z" : "Redo Ctrl+Y"}
+            aria-label="重做"
+            className="grid size-8 place-items-center rounded-md text-foreground transition-colors hover:bg-muted disabled:opacity-40"
+          >
+            <Redo2 className="size-4" />
+          </button>
+        </div>
+
         <div className="hidden items-center gap-1 rounded-lg border border-border p-0.5 sm:flex">
           <button
             type="button"
