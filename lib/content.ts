@@ -1,4 +1,12 @@
 import { dict, APP_URL, type Dict, type Lang } from "@/lib/i18n"
+import {
+  createDefaultArtboards,
+  normalizeArtboards,
+  type ArtboardsMap,
+} from "@/lib/artboard"
+
+export type { ArtboardItem, ArtboardsMap, SectionArtboardData } from "@/lib/artboard"
+export { ARTBOARD_WIDTH, createDefaultArtboards, normalizeArtboards } from "@/lib/artboard"
 
 export type MediaItem = {
   id: string
@@ -71,6 +79,7 @@ export type SiteSettings = {
   }
   sectionOrder: PageSectionId[]
   layout: Record<string, LayoutTransform>
+  artboards: ArtboardsMap
   seo: {
     title: string
     description: string
@@ -139,6 +148,7 @@ export function createDefaultContent(): SiteContent {
       },
       sectionOrder: [...DEFAULT_SECTION_ORDER],
       layout: {},
+      artboards: createDefaultArtboards(),
       seo: {
         title: "壹鍵康 OneClick Wellness | 一站式 AI 健康管理平台",
         description:
@@ -189,7 +199,7 @@ export function normalizeLayout(layout: unknown): Record<string, LayoutTransform
   return out
 }
 
-/** Merge older Mongo docs that lack sectionOrder / layout. */
+/** Merge older Mongo docs that lack sectionOrder / layout / artboards. */
 export function normalizeSiteContent(raw: SiteContent): SiteContent {
   const defaults = createDefaultContent()
   return {
@@ -216,6 +226,7 @@ export function normalizeSiteContent(raw: SiteContent): SiteContent {
       },
       sectionOrder: normalizeSectionOrder(raw.settings?.sectionOrder),
       layout: normalizeLayout(raw.settings?.layout),
+      artboards: normalizeArtboards(raw.settings?.artboards),
     },
   }
 }

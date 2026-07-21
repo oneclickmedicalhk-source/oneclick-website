@@ -153,7 +153,7 @@ export function Sidebar({
           </ul>
 
           <p className="mt-6 px-3 text-xs leading-relaxed text-muted-foreground">
-            撳區塊跳到預覽位置；用箭嘴調順序。圖片可用拖曳手柄移位同縮放。
+            撳區塊跳去預覽。畫板內可拖字／掣／圖，右下角縮放，撞位會自動推開。
           </p>
         </nav>
 

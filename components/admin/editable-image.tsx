@@ -78,6 +78,7 @@ export function EditableImage({
       {/* Clickable overlay — must receive pointer events (not pointer-events-none) */}
       <button
         type="button"
+        data-upload
         disabled={busy}
         aria-label={label}
         onClick={(e) => {
