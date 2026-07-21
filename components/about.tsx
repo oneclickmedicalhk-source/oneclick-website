@@ -14,7 +14,7 @@ export function About() {
   const appUrl = settings.appUrl
 
   return (
-    <section id="about" className="scroll-mt-20 bg-secondary/50 py-10 lg:py-14">
+    <section id="about" data-page-section="about" className="scroll-mt-20 bg-secondary/50 py-10 lg:py-14">
       <div className="px-4 sm:px-6">
         <SectionArtboard
           sectionId="about"
@@ -78,21 +78,33 @@ export function About() {
                 </a>
               ),
             },
-            ...t.about.values.map((v, i) => {
+            ...t.about.values.flatMap((v, i) => {
               const Icon = icons[i]
-              return {
-                id: `about.value.${i}`,
-                children: (
-                  <div className="flex h-full flex-col gap-4 rounded-2xl border border-border bg-card p-7 shadow-sm">
-                    <span className="flex size-12 items-center justify-center rounded-2xl bg-brand/10 text-brand">
-                      <Icon className="size-6" aria-hidden="true" />
-                    </span>
+              return [
+                {
+                  id: `about.value.${i}.icon`,
+                  children: (
+                    <div className="flex h-full items-center rounded-2xl border border-border bg-card px-5 shadow-sm">
+                      <span className="flex size-12 items-center justify-center rounded-2xl bg-brand/10 text-brand">
+                        <Icon className="size-6" aria-hidden="true" />
+                      </span>
+                    </div>
+                  ),
+                },
+                {
+                  id: `about.value.${i}.title`,
+                  children: (
                     <EditableText
                       path={["about", "values", i, "t"]}
                       value={v.t}
                       as="h3"
                       className="text-lg font-bold text-foreground"
                     />
+                  ),
+                },
+                {
+                  id: `about.value.${i}.desc`,
+                  children: (
                     <EditableText
                       path={["about", "values", i, "d"]}
                       value={v.d}
@@ -100,9 +112,9 @@ export function About() {
                       multiline
                       className="text-sm leading-relaxed text-muted-foreground"
                     />
-                  </div>
-                ),
-              }
+                  ),
+                },
+              ]
             }),
           ]}
         />

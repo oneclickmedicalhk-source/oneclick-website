@@ -35,6 +35,7 @@ export function Sidebar({
   sectionOrder,
   onReorderSections,
   onJumpSection,
+  activePageSection,
 }: {
   active: SectionKey
   onSelect: (key: SectionKey) => void
@@ -43,6 +44,7 @@ export function Sidebar({
   sectionOrder?: PageSectionId[]
   onReorderSections?: (next: PageSectionId[]) => void
   onJumpSection?: (anchor: string) => void
+  activePageSection?: PageSectionId
 }) {
   const order = normalizeSectionOrder(sectionOrder)
 
@@ -115,7 +117,9 @@ export function Sidebar({
             頁面區塊
           </p>
           <ul className="flex flex-col gap-0.5">
-            {order.map((id, index) => (
+            {order.map((id, index) => {
+              const onScreen = active === "visual" && activePageSection === id
+              return (
               <li key={id} className="group flex items-center gap-0.5">
                 <button
                   type="button"
@@ -124,7 +128,11 @@ export function Sidebar({
                     onJumpSection?.(SECTION_ANCHORS[id])
                     onClose()
                   }}
-                  className="min-w-0 flex-1 rounded-lg px-3 py-2 text-left text-sm font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                  className={`min-w-0 flex-1 rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors ${
+                    onScreen
+                      ? "bg-brand/10 text-brand"
+                      : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                  }`}
                 >
                   {SECTION_LABELS[id]}
                 </button>
@@ -149,7 +157,8 @@ export function Sidebar({
                   </button>
                 </div>
               </li>
-            ))}
+              )
+            })}
           </ul>
 
           <p className="mt-6 px-3 text-xs leading-relaxed text-muted-foreground">

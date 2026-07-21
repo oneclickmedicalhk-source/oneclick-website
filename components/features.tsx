@@ -26,56 +26,75 @@ export function Features() {
     const Icon = M.icon
     return [
       {
-        id: `pillar.${i}.copy`,
+        id: `pillar.${i}.tag`,
         children: (
-          <div id={i === 3 ? "shop" : undefined} className="flex h-full flex-col gap-3">
-            <span
-              className={`inline-flex w-fit items-center gap-2 rounded-full ${M.bg} px-3 py-1 text-sm font-semibold ${M.tint}`}
-            >
-              <Icon className="size-4" aria-hidden="true" />
-              <EditableText path={["pillars", "items", i, "tag"]} value={item.tag} />
-            </span>
-            <EditableText
-              path={["pillars", "items", i, "title"]}
-              value={item.title}
-              as="h3"
-              className="text-2xl font-bold text-foreground sm:text-3xl"
-            />
-            <EditableText
-              path={["pillars", "items", i, "desc"]}
-              value={item.desc}
-              as="p"
-              multiline
-              className="text-pretty leading-relaxed text-muted-foreground"
-            />
-            <ul className="mt-2 flex flex-col gap-2">
-              {item.points.map((p, pi) => (
-                <li key={pi} className="flex items-center gap-3">
-                  <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-success/15 text-success">
-                    <Check className="size-3.5" strokeWidth={3} aria-hidden="true" />
-                  </span>
-                  <EditableText
-                    path={["pillars", "items", i, "points", pi]}
-                    value={p}
-                    as="span"
-                    className="text-sm font-medium text-foreground"
-                  />
-                </li>
-              ))}
-            </ul>
-            <a
-              href={editor ? undefined : appUrl}
-              target={editor ? undefined : "_blank"}
-              rel="noopener noreferrer"
-              onClick={(e) => {
-                if (editor) e.preventDefault()
-              }}
-              className="mt-auto inline-flex h-12 w-fit items-center justify-center gap-2 rounded-full bg-brand px-6 text-base font-semibold text-brand-foreground shadow-sm"
-            >
-              <EditableText path={["pillars", "items", i, "cta"]} value={item.cta} />
-              <ArrowRight className="size-4" aria-hidden="true" />
-            </a>
-          </div>
+          <span
+            id={i === 3 ? "shop" : undefined}
+            className={`inline-flex h-full items-center gap-2 rounded-full ${M.bg} px-3 text-sm font-semibold ${M.tint}`}
+          >
+            <Icon className="size-4" aria-hidden="true" />
+            <EditableText path={["pillars", "items", i, "tag"]} value={item.tag} />
+          </span>
+        ),
+      },
+      {
+        id: `pillar.${i}.title`,
+        children: (
+          <EditableText
+            path={["pillars", "items", i, "title"]}
+            value={item.title}
+            as="h3"
+            className="text-2xl font-bold text-foreground sm:text-3xl"
+          />
+        ),
+      },
+      {
+        id: `pillar.${i}.desc`,
+        children: (
+          <EditableText
+            path={["pillars", "items", i, "desc"]}
+            value={item.desc}
+            as="p"
+            multiline
+            className="text-pretty leading-relaxed text-muted-foreground"
+          />
+        ),
+      },
+      {
+        id: `pillar.${i}.points`,
+        children: (
+          <ul className="flex h-full flex-col gap-2">
+            {item.points.map((p, pi) => (
+              <li key={pi} className="flex items-center gap-3">
+                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-success/15 text-success">
+                  <Check className="size-3.5" strokeWidth={3} aria-hidden="true" />
+                </span>
+                <EditableText
+                  path={["pillars", "items", i, "points", pi]}
+                  value={p}
+                  as="span"
+                  className="text-sm font-medium text-foreground"
+                />
+              </li>
+            ))}
+          </ul>
+        ),
+      },
+      {
+        id: `pillar.${i}.cta`,
+        children: (
+          <a
+            href={editor ? undefined : appUrl}
+            target={editor ? undefined : "_blank"}
+            rel="noopener noreferrer"
+            onClick={(e) => {
+              if (editor) e.preventDefault()
+            }}
+            className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-brand px-6 text-base font-semibold text-brand-foreground shadow-sm"
+          >
+            <EditableText path={["pillars", "items", i, "cta"]} value={item.cta} />
+            <ArrowRight className="size-4" aria-hidden="true" />
+          </a>
         ),
       },
       {
@@ -99,7 +118,7 @@ export function Features() {
   })
 
   return (
-    <section id="features" className="scroll-mt-20 py-10 lg:py-14">
+    <section id="features" data-page-section="features" className="scroll-mt-20 py-10 lg:py-14">
       <div className="px-4 sm:px-6">
         <SectionArtboard
           sectionId="features"

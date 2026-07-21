@@ -14,7 +14,7 @@ export function HowItWorks() {
   const appUrl = settings.appUrl
 
   return (
-    <section id="how" className="scroll-mt-20 bg-secondary/50 py-10 lg:py-14">
+    <section id="how" data-page-section="how" className="scroll-mt-20 bg-secondary/50 py-10 lg:py-14">
       <div className="px-4 sm:px-6">
         <SectionArtboard
           sectionId="how"
@@ -41,13 +41,13 @@ export function HowItWorks() {
                 />
               ),
             },
-            ...t.how.steps.map((step, i) => {
+            ...t.how.steps.flatMap((step, i) => {
               const Icon = icons[i]
-              return {
-                id: `how.step.${i}`,
-                children: (
-                  <div className="flex h-full flex-col gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
-                    <div className="flex items-center justify-between">
+              return [
+                {
+                  id: `how.step.${i}.badge`,
+                  children: (
+                    <div className="flex h-full items-center justify-between rounded-xl border border-border bg-card px-4 shadow-sm">
                       <span className="flex size-11 items-center justify-center rounded-xl bg-brand/10 text-brand">
                         <Icon className="size-5" aria-hidden="true" />
                       </span>
@@ -55,24 +55,32 @@ export function HowItWorks() {
                         {String(i + 1).padStart(2, "0")}
                       </span>
                     </div>
-                    <div>
-                      <EditableText
-                        path={["how", "steps", i, "t"]}
-                        value={step.t}
-                        as="h3"
-                        className="text-lg font-bold text-foreground"
-                      />
-                      <EditableText
-                        path={["how", "steps", i, "d"]}
-                        value={step.d}
-                        as="p"
-                        multiline
-                        className="mt-1.5 text-sm leading-relaxed text-muted-foreground"
-                      />
-                    </div>
-                  </div>
-                ),
-              }
+                  ),
+                },
+                {
+                  id: `how.step.${i}.title`,
+                  children: (
+                    <EditableText
+                      path={["how", "steps", i, "t"]}
+                      value={step.t}
+                      as="h3"
+                      className="text-lg font-bold text-foreground"
+                    />
+                  ),
+                },
+                {
+                  id: `how.step.${i}.desc`,
+                  children: (
+                    <EditableText
+                      path={["how", "steps", i, "d"]}
+                      value={step.d}
+                      as="p"
+                      multiline
+                      className="text-sm leading-relaxed text-muted-foreground"
+                    />
+                  ),
+                },
+              ]
             }),
             {
               id: "how.cta",

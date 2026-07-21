@@ -16,6 +16,11 @@ import { LandingSections } from "@/components/landing-sections"
 import { SiteFooter } from "@/components/site-footer"
 import { BrandingSettings, SeoSettings } from "@/components/admin/settings-panels"
 import { Card } from "@/components/admin/primitives"
+import {
+  SectionPresenceBar,
+  useActivePageSection,
+} from "@/components/admin/section-presence"
+import type { PageSectionId } from "@/lib/content"
 
 function stripMeta(data: SiteContent & { _meta?: { dbConnected?: boolean } }): {
   content: SiteContent
@@ -28,23 +33,40 @@ function stripMeta(data: SiteContent & { _meta?: { dbConnected?: boolean } }): {
   }
 }
 
-function VisualCanvas({ viewport }: { viewport: "desktop" | "mobile" }) {
+function VisualCanvas({
+  viewport,
+  onActiveSection,
+}: {
+  viewport: "desktop" | "mobile"
+  onActiveSection?: (id: PageSectionId) => void
+}) {
+  const activeSection = useActivePageSection("#visual-canvas")
+
+  useEffect(() => {
+    onActiveSection?.(activeSection)
+  }, [activeSection, onActiveSection])
+
   return (
-    <div className="flex justify-center bg-muted/50 p-4 sm:p-6">
-      <div
-        id="visual-canvas"
-        className={`min-h-[70vh] overflow-hidden rounded-2xl border border-border bg-background shadow-lg transition-all ${
-          viewport === "mobile" ? "w-full max-w-[390px]" : "w-full max-w-6xl"
-        }`}
-      >
-        <div className="border-b border-border bg-muted/40 px-3 py-2 text-center text-[11px] font-medium text-muted-foreground">
-          點選拖移 · 右下角縮放 · 撞位自動推開 · ⌘Z／Ctrl+Z 上一步 · 記得儲存
+    <div className="relative flex flex-1 flex-col">
+      <div className="sticky top-[57px] z-10 mx-4 mt-2 sm:mx-6 lg:top-[61px]">
+        <SectionPresenceBar active={activeSection} />
+      </div>
+      <div className="flex justify-center bg-muted/50 p-4 sm:p-6">
+        <div
+          id="visual-canvas"
+          className={`min-h-[70vh] overflow-hidden rounded-2xl border border-border bg-background shadow-lg transition-all ${
+            viewport === "mobile" ? "w-full max-w-[390px]" : "w-full max-w-6xl"
+          }`}
+        >
+          <div className="border-b border-border bg-muted/40 px-3 py-2 text-center text-[11px] font-medium text-muted-foreground">
+            逐件拖移／縮放 · 撞位自動推開 · ⌘Z 上一步 · 記得儲存
+          </div>
+          <SiteHeader />
+          <main>
+            <LandingSections />
+          </main>
+          <SiteFooter />
         </div>
-        <SiteHeader />
-        <main>
-          <LandingSections />
-        </main>
-        <SiteFooter />
       </div>
     </div>
   )
@@ -65,6 +87,7 @@ function AdminShell({
   const [error, setError] = useState("")
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [viewport, setViewport] = useState<"desktop" | "mobile">("desktop")
+  const [activePageSection, setActivePageSection] = useState<PageSectionId>("hero")
 
   const handleSave = async () => {
     setSaving(true)
@@ -118,6 +141,7 @@ function AdminShell({
         onClose={() => setSidebarOpen(false)}
         sectionOrder={editor.content.settings.sectionOrder}
         onReorderSections={(next) => editor.patchSettings(["sectionOrder"], next)}
+        activePageSection={activePageSection}
         onJumpSection={(anchor) => {
           setActive("visual")
           requestAnimationFrame(() => {
@@ -159,7 +183,7 @@ function AdminShell({
         ) : null}
 
         {active === "visual" ? (
-          <VisualCanvas viewport={viewport} />
+          <VisualCanvas viewport={viewport} onActiveSection={setActivePageSection} />
         ) : (
           <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
             <Card title={titles[active]}>

@@ -14,7 +14,7 @@ export function DownloadCta() {
   const playStoreUrl = settings.playStoreUrl || appUrl
 
   return (
-    <section id="download" className="scroll-mt-20 py-10 lg:py-14">
+    <section id="download" data-page-section="download" className="scroll-mt-20 py-10 lg:py-14">
       <div className="px-4 sm:px-6">
         <div className="rounded-3xl border border-border bg-card shadow-sm">
           <SectionArtboard
@@ -61,36 +61,39 @@ export function DownloadCta() {
                 ),
               },
               {
-                id: "download.stores",
+                id: "download.storeApp",
                 children: (
-                  <div className="flex h-full gap-3">
-                    <a
-                      href={editor ? undefined : appStoreUrl}
-                      target={editor ? undefined : "_blank"}
-                      rel="noopener noreferrer"
-                      onClick={(e) => {
-                        if (editor) e.preventDefault()
-                      }}
-                      className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-full border border-border bg-background px-5 text-sm font-semibold text-foreground"
-                      aria-label="App Store"
-                    >
-                      <Apple className="size-5" aria-hidden="true" />
-                      App Store
-                    </a>
-                    <a
-                      href={editor ? undefined : playStoreUrl}
-                      target={editor ? undefined : "_blank"}
-                      rel="noopener noreferrer"
-                      onClick={(e) => {
-                        if (editor) e.preventDefault()
-                      }}
-                      className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-full border border-border bg-background px-5 text-sm font-semibold text-foreground"
-                      aria-label="Google Play"
-                    >
-                      <Play className="size-5" aria-hidden="true" />
-                      Google Play
-                    </a>
-                  </div>
+                  <a
+                    href={editor ? undefined : appStoreUrl}
+                    target={editor ? undefined : "_blank"}
+                    rel="noopener noreferrer"
+                    onClick={(e) => {
+                      if (editor) e.preventDefault()
+                    }}
+                    className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full border border-border bg-background px-5 text-sm font-semibold text-foreground"
+                    aria-label="App Store"
+                  >
+                    <Apple className="size-5" aria-hidden="true" />
+                    App Store
+                  </a>
+                ),
+              },
+              {
+                id: "download.storePlay",
+                children: (
+                  <a
+                    href={editor ? undefined : playStoreUrl}
+                    target={editor ? undefined : "_blank"}
+                    rel="noopener noreferrer"
+                    onClick={(e) => {
+                      if (editor) e.preventDefault()
+                    }}
+                    className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full border border-border bg-background px-5 text-sm font-semibold text-foreground"
+                    aria-label="Google Play"
+                  >
+                    <Play className="size-5" aria-hidden="true" />
+                    Google Play
+                  </a>
                 ),
               },
               {

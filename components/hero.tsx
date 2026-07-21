@@ -15,7 +15,7 @@ export function Hero() {
   const appUrl = settings.appUrl
 
   return (
-    <section id="top" className="relative overflow-hidden">
+    <section id="top" data-page-section="hero" className="relative overflow-hidden">
       <div
         className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-secondary/70 via-background to-background"
         aria-hidden="true"
@@ -90,26 +90,42 @@ export function Hero() {
               ),
             },
             {
-              id: "hero.stats",
+              id: "hero.stat.0",
               children: (
-                <dl className="grid h-full grid-cols-3 gap-3 border-t border-border pt-4">
-                  {[1, 2, 3].map((n) => (
-                    <div key={n} className="flex flex-col gap-1">
-                      <dt className="text-xs text-muted-foreground">
-                        <EditableText
-                          path={["hero", `stat${n}`]}
-                          value={(t.hero as any)[`stat${n}`]}
-                        />
-                      </dt>
-                      <dd className="text-lg font-bold text-foreground">
-                        <EditableText
-                          path={["hero", `stat${n}v`]}
-                          value={(t.hero as any)[`stat${n}v`]}
-                        />
-                      </dd>
-                    </div>
-                  ))}
-                </dl>
+                <div className="flex h-full flex-col gap-1 border-t border-border pt-4">
+                  <p className="text-xs text-muted-foreground">
+                    <EditableText path={["hero", "stat1"]} value={t.hero.stat1} />
+                  </p>
+                  <p className="text-lg font-bold text-foreground">
+                    <EditableText path={["hero", "stat1v"]} value={t.hero.stat1v} />
+                  </p>
+                </div>
+              ),
+            },
+            {
+              id: "hero.stat.1",
+              children: (
+                <div className="flex h-full flex-col gap-1 border-t border-border pt-4">
+                  <p className="text-xs text-muted-foreground">
+                    <EditableText path={["hero", "stat2"]} value={t.hero.stat2} />
+                  </p>
+                  <p className="text-lg font-bold text-foreground">
+                    <EditableText path={["hero", "stat2v"]} value={t.hero.stat2v} />
+                  </p>
+                </div>
+              ),
+            },
+            {
+              id: "hero.stat.2",
+              children: (
+                <div className="flex h-full flex-col gap-1 border-t border-border pt-4">
+                  <p className="text-xs text-muted-foreground">
+                    <EditableText path={["hero", "stat3"]} value={t.hero.stat3} />
+                  </p>
+                  <p className="text-lg font-bold text-foreground">
+                    <EditableText path={["hero", "stat3v"]} value={t.hero.stat3v} />
+                  </p>
+                </div>
               ),
             },
             {

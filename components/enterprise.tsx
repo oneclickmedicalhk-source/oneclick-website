@@ -14,7 +14,7 @@ export function Enterprise() {
   const appUrl = settings.appUrl
 
   return (
-    <section id="enterprise" className="scroll-mt-20 py-10 lg:py-14">
+    <section id="enterprise" data-page-section="enterprise" className="scroll-mt-20 py-10 lg:py-14">
       <div className="px-4 sm:px-6">
         <div className="overflow-hidden rounded-3xl bg-brand text-brand-foreground">
           <SectionArtboard
@@ -53,26 +53,22 @@ export function Enterprise() {
                   />
                 ),
               },
-              {
-                id: "enterprise.points",
+              ...t.enterprise.points.map((p, i) => ({
+                id: `enterprise.point.${i}`,
                 children: (
-                  <ul className="grid gap-3 sm:grid-cols-2">
-                    {t.enterprise.points.map((p, i) => (
-                      <li key={i} className="flex items-start gap-2.5">
-                        <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-gold text-gold-foreground">
-                          <Check className="size-3" strokeWidth={3} aria-hidden="true" />
-                        </span>
-                        <EditableText
-                          path={["enterprise", "points", i]}
-                          value={p}
-                          as="span"
-                          className="text-sm font-medium text-brand-foreground/90"
-                        />
-                      </li>
-                    ))}
-                  </ul>
+                  <div className="flex h-full items-start gap-2.5">
+                    <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-gold text-gold-foreground">
+                      <Check className="size-3" strokeWidth={3} aria-hidden="true" />
+                    </span>
+                    <EditableText
+                      path={["enterprise", "points", i]}
+                      value={p}
+                      as="span"
+                      className="text-sm font-medium text-brand-foreground/90"
+                    />
+                  </div>
                 ),
-              },
+              })),
               {
                 id: "enterprise.cta",
                 children: (

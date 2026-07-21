@@ -40,6 +40,59 @@ function item(
 }
 
 export function createDefaultArtboards(): ArtboardsMap {
+  const featuresItems: ArtboardItem[] = [
+    item("features.title", 176, 48, 800, 56, 2),
+    item("features.subtitle", 176, 116, 800, 56, 2),
+  ]
+
+  // Four pillars: alternating L/R copy columns with independent controls
+  const pillarLayouts = [
+    { copyX: 48, imageX: 620, y: 220 },
+    { copyX: 620, imageX: 200, y: 780 },
+    { copyX: 48, imageX: 620, y: 1340 },
+    { copyX: 620, imageX: 200, y: 1900 },
+  ]
+  pillarLayouts.forEach((layout, i) => {
+    const x = layout.copyX
+    const y = layout.y
+    featuresItems.push(
+      item(`pillar.${i}.tag`, x, y, 160, 36, 2),
+      item(`pillar.${i}.title`, x, y + 52, 480, 56, 2),
+      item(`pillar.${i}.desc`, x, y + 120, 480, 110, 2),
+      item(`pillar.${i}.points`, x, y + 248, 480, 130, 2),
+      item(`pillar.${i}.cta`, x, y + 396, 250, 52, 3),
+      item(`pillar.${i}.image`, layout.imageX, layout.y - 20, 280, 520, 1),
+    )
+  })
+
+  const howItems: ArtboardItem[] = [
+    item("how.title", 176, 48, 800, 56, 2),
+    item("how.subtitle", 276, 116, 600, 40, 2),
+  ]
+  ;[48, 318, 588, 858].forEach((x, i) => {
+    howItems.push(
+      item(`how.step.${i}.badge`, x, 200, 250, 52, 2),
+      item(`how.step.${i}.title`, x, 268, 250, 48, 2),
+      item(`how.step.${i}.desc`, x, 328, 250, 120, 2),
+    )
+  })
+  howItems.push(item("how.cta", 456, 520, 240, 52, 3))
+
+  const aboutItems: ArtboardItem[] = [
+    item("about.badge", 476, 48, 200, 36, 2),
+    item("about.company", 276, 100, 600, 32, 2),
+    item("about.title", 176, 148, 800, 60, 2),
+    item("about.desc", 176, 230, 800, 110, 2),
+    item("about.cta", 466, 360, 220, 52, 3),
+  ]
+  ;[48, 406, 764].forEach((x, i) => {
+    aboutItems.push(
+      item(`about.value.${i}.icon`, x, 460, 340, 56, 2),
+      item(`about.value.${i}.title`, x, 528, 340, 40, 2),
+      item(`about.value.${i}.desc`, x, 580, 340, 100, 2),
+    )
+  })
+
   return {
     hero: {
       height: 640,
@@ -49,37 +102,20 @@ export function createDefaultArtboards(): ArtboardsMap {
         item("hero.desc", 48, 300, 500, 110, 2),
         item("hero.ctaPrimary", 48, 430, 170, 52, 3),
         item("hero.ctaSecondary", 232, 430, 190, 52, 3),
-        item("hero.stats", 48, 510, 500, 90, 2),
+        item("hero.stat.0", 48, 510, 150, 80, 2),
+        item("hero.stat.1", 214, 510, 150, 80, 2),
+        item("hero.stat.2", 380, 510, 150, 80, 2),
         item("hero.imagePrimary", 620, 140, 220, 460, 1),
         item("hero.imageSecondary", 820, 80, 260, 520, 2),
       ],
     },
     features: {
       height: 2680,
-      items: [
-        item("features.title", 176, 48, 800, 56, 2),
-        item("features.subtitle", 176, 116, 800, 56, 2),
-        item("pillar.0.copy", 48, 220, 480, 420, 2),
-        item("pillar.0.image", 620, 200, 280, 520, 1),
-        item("pillar.1.copy", 620, 780, 480, 420, 2),
-        item("pillar.1.image", 200, 760, 280, 520, 1),
-        item("pillar.2.copy", 48, 1340, 480, 420, 2),
-        item("pillar.2.image", 620, 1320, 280, 520, 1),
-        item("pillar.3.copy", 620, 1900, 480, 420, 2),
-        item("pillar.3.image", 200, 1880, 280, 520, 1),
-      ],
+      items: featuresItems,
     },
     how: {
       height: 720,
-      items: [
-        item("how.title", 176, 48, 800, 56, 2),
-        item("how.subtitle", 276, 116, 600, 40, 2),
-        item("how.step.0", 48, 200, 250, 260, 2),
-        item("how.step.1", 318, 200, 250, 260, 2),
-        item("how.step.2", 588, 200, 250, 260, 2),
-        item("how.step.3", 858, 200, 250, 260, 2),
-        item("how.cta", 456, 520, 240, 52, 3),
-      ],
+      items: howItems,
     },
     enterprise: {
       height: 620,
@@ -87,23 +123,17 @@ export function createDefaultArtboards(): ArtboardsMap {
         item("enterprise.badge", 56, 80, 200, 36, 2),
         item("enterprise.title", 56, 140, 520, 100, 2),
         item("enterprise.desc", 56, 260, 520, 100, 2),
-        item("enterprise.points", 56, 380, 520, 120, 2),
+        item("enterprise.point.0", 56, 380, 250, 48, 2),
+        item("enterprise.point.1", 320, 380, 250, 48, 2),
+        item("enterprise.point.2", 56, 440, 250, 48, 2),
+        item("enterprise.point.3", 320, 440, 250, 48, 2),
         item("enterprise.cta", 56, 520, 220, 52, 3),
         item("enterprise.image", 680, 60, 280, 520, 1),
       ],
     },
     about: {
       height: 780,
-      items: [
-        item("about.badge", 476, 48, 200, 36, 2),
-        item("about.company", 276, 100, 600, 32, 2),
-        item("about.title", 176, 148, 800, 60, 2),
-        item("about.desc", 176, 230, 800, 110, 2),
-        item("about.cta", 466, 360, 220, 52, 3),
-        item("about.value.0", 48, 460, 340, 220, 2),
-        item("about.value.1", 406, 460, 340, 220, 2),
-        item("about.value.2", 764, 460, 340, 220, 2),
-      ],
+      items: aboutItems,
     },
     download: {
       height: 480,
@@ -111,7 +141,8 @@ export function createDefaultArtboards(): ArtboardsMap {
         item("download.title", 176, 80, 800, 70, 2),
         item("download.desc", 276, 170, 600, 56, 2),
         item("download.cta", 280, 260, 180, 52, 3),
-        item("download.stores", 480, 260, 320, 52, 3),
+        item("download.storeApp", 480, 260, 150, 52, 3),
+        item("download.storePlay", 648, 260, 150, 52, 3),
         item("download.note", 426, 340, 300, 32, 2),
       ],
     },
@@ -150,6 +181,9 @@ function normalizeItem(raw: unknown, fallback: ArtboardItem): ArtboardItem {
   }
 }
 
+const OBSOLETE_ITEM_ID =
+  /^(pillar\.\d+\.copy|hero\.stats|how\.step\.\d+$|enterprise\.points|about\.value\.\d+$|download\.stores)$/
+
 export function normalizeArtboards(raw: unknown): ArtboardsMap {
   const defaults = createDefaultArtboards()
   if (!raw || typeof raw !== "object") return defaults
@@ -167,23 +201,11 @@ export function normalizeArtboards(raw: unknown): ArtboardsMap {
     const byId = new Map(
       (Array.isArray(src.items) ? src.items : [])
         .filter((i): i is ArtboardItem => !!i && typeof (i as ArtboardItem).id === "string")
+        .filter((i) => !OBSOLETE_ITEM_ID.test(i.id))
         .map((i) => [i.id, i]),
     )
     const items = def.items.map((fallback) => normalizeItem(byId.get(fallback.id), fallback))
-    for (const [id, itemVal] of byId) {
-      if (items.some((i) => i.id === id)) continue
-      items.push(
-        normalizeItem(itemVal, {
-          id,
-          x: 0,
-          y: 0,
-          w: 120,
-          h: 40,
-          scale: 1,
-          z: 1,
-        }),
-      )
-    }
+    // Do not keep unknown legacy extras — only known default ids
     const height =
       typeof src.height === "number" && Number.isFinite(src.height)
         ? Math.max(320, src.height)
