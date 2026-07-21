@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -47,6 +48,20 @@ function useContainerScale(ref: React.RefObject<HTMLDivElement | null>) {
   return scale
 }
 
+function applyMeasuredHeights(
+  board: SectionArtboardData,
+  measured: Map<string, number>,
+): SectionArtboardData {
+  return {
+    ...board,
+    items: board.items.map((it) => {
+      const h = measured.get(it.id)
+      if (!h || Math.abs(h - it.h) < 2) return it
+      return { ...it, h }
+    }),
+  }
+}
+
 export function SectionArtboard({
   sectionId,
   parts,
@@ -72,6 +87,9 @@ export function SectionArtboard({
     active: boolean
   }>(null)
   const [, setDragTick] = useState(0)
+  const measuredH = useRef(new Map<string, number>())
+  const itemEls = useRef(new Map<string, HTMLDivElement>())
+  const [, setMeasureTick] = useState(0)
 
   const defaults = useMemo(() => createDefaultArtboards()[sectionId], [sectionId])
   const board: SectionArtboardData = settings.artboards?.[sectionId] || defaults
@@ -94,6 +112,30 @@ export function SectionArtboard({
     [editor, sectionId],
   )
 
+  const boardForCollision = useCallback(() => {
+    return applyMeasuredHeights(boardRef.current, measuredH.current)
+  }, [])
+
+  useLayoutEffect(() => {
+    const ro = new ResizeObserver((entries) => {
+      let changed = false
+      for (const entry of entries) {
+        const id = (entry.target as HTMLElement).dataset.artboardItem
+        if (!id) continue
+        const h = Math.ceil((entry.target as HTMLElement).offsetHeight)
+        if (!h) continue
+        const prev = measuredH.current.get(id)
+        if (prev === undefined || Math.abs(prev - h) >= 2) {
+          measuredH.current.set(id, h)
+          changed = true
+        }
+      }
+      if (changed) setMeasureTick((n) => n + 1)
+    })
+    itemEls.current.forEach((el) => ro.observe(el))
+    return () => ro.disconnect()
+  }, [board.items, parts])
+
   useEffect(() => {
     if (!editor) return
 
@@ -110,11 +152,12 @@ export function SectionArtboard({
       }
       const dx = dxScreen / vs
       const dy = dyScreen / vs
-      const base = boardRef.current
+      const base = boardForCollision()
       let nextItems: ArtboardItem[]
       if (drag.mode === "move") {
         const patched = {
           ...drag.orig,
+          h: measuredH.current.get(drag.id) ?? drag.orig.h,
           x: snapArtboard(drag.orig.x + dx),
           y: snapArtboard(Math.max(0, drag.orig.y + dy)),
         }
@@ -123,6 +166,7 @@ export function SectionArtboard({
         const delta = (dx + dy) / 220
         const patched = {
           ...drag.orig,
+          h: measuredH.current.get(drag.id) ?? drag.orig.h,
           scale: clampScale(drag.orig.scale + delta),
         }
         nextItems = base.items.map((it) => (it.id === drag.id ? patched : it))
@@ -132,6 +176,17 @@ export function SectionArtboard({
     }
 
     const onUp = () => {
+      const drag = dragRef.current
+      if (drag?.active) {
+        const base = boardRef.current
+        const h = measuredH.current.get(drag.id)
+        if (h && Math.abs((base.items.find((i) => i.id === drag.id)?.h ?? 0) - h) >= 2) {
+          commitBoard({
+            ...base,
+            items: base.items.map((it) => (it.id === drag.id ? { ...it, h } : it)),
+          })
+        }
+      }
       if (dragRef.current) {
         dragRef.current = null
         setDragTick((n) => n + 1)
@@ -146,7 +201,7 @@ export function SectionArtboard({
       window.removeEventListener("pointerup", onUp)
       window.removeEventListener("pointercancel", onUp)
     }
-  }, [editor, commitBoard])
+  }, [editor, commitBoard, boardForCollision])
 
   const sorted = useMemo(
     () => [...board.items].sort((a, b) => a.z - b.z),
@@ -163,16 +218,17 @@ export function SectionArtboard({
     e.stopPropagation()
     if (mode === "scale") e.preventDefault()
     setSelectedId(it.id)
-    const raised = bringToFront(boardRef.current, it.id)
+    const raised = bringToFront(boardForCollision(), it.id)
     boardRef.current = raised
     commitBoard(raised)
     const current = raised.items.find((i) => i.id === it.id) || it
+    const measured = measuredH.current.get(it.id)
     dragRef.current = {
       id: it.id,
       mode,
       startX: e.clientX,
       startY: e.clientY,
-      orig: { ...current },
+      orig: { ...current, h: measured ?? current.h },
       active: immediate || mode === "scale",
     }
     setDragTick((n) => n + 1)
@@ -198,18 +254,23 @@ export function SectionArtboard({
           {sorted.map((it) => {
             const child = partMap.get(it.id)
             if (!child) return null
-            const bounds = itemBounds(it)
+            const liveH = measuredH.current.get(it.id) ?? it.h
+            const bounds = itemBounds({ ...it, h: liveH })
             const selected = Boolean(editor && selectedId === it.id)
             return (
               <div
                 key={it.id}
                 data-artboard-item={it.id}
+                ref={(el) => {
+                  if (el) itemEls.current.set(it.id, el)
+                  else itemEls.current.delete(it.id)
+                }}
                 className={cn("absolute", editor && "cursor-move")}
                 style={{
                   left: it.x,
                   top: it.y,
                   width: it.w,
-                  height: it.h,
+                  height: "auto",
                   zIndex: selected ? 60 : it.z,
                   transform: `scale(${it.scale})`,
                   transformOrigin: "top left",
@@ -229,7 +290,7 @@ export function SectionArtboard({
                   startDrag(it, "move", e)
                 }}
               >
-                <div className="size-full overflow-visible">{child}</div>
+                <div className="w-full overflow-visible">{child}</div>
 
                 {selected ? (
                   <>
@@ -250,7 +311,12 @@ export function SectionArtboard({
                         const nextItems = base.items.map((row) =>
                           row.id === it.id ? { ...def } : row,
                         )
-                        commitBoard(resolveCollisions({ ...base, items: nextItems }, it.id))
+                        commitBoard(
+                          resolveCollisions(
+                            applyMeasuredHeights({ ...base, items: nextItems }, measuredH.current),
+                            it.id,
+                          ),
+                        )
                       }}
                     >
                       <RotateCcw className="size-3" />
