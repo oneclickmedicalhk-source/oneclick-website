@@ -10,22 +10,25 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react"
-import { RotateCcw, Trash2 } from "lucide-react"
-import { useEditor } from "@/components/admin/editor-provider"
+import { useEditor, type HistoryMode } from "@/components/admin/editor-provider"
 import { useLanguage } from "@/components/language-provider"
 import { bringToFront, resolveCollisions } from "@/components/artboard/collision"
 import { FreeformImage, FreeformText } from "@/components/artboard/freeform-widgets"
+import { SelectionToolbar } from "@/components/artboard/selection-toolbar"
 import {
   ARTBOARD_WIDTH,
   clampScale,
   createDefaultArtboards,
+  deleteItemFromArtboard,
+  duplicateArtboardItem,
   isFreeformItem,
   itemBounds,
-  removeItemFromArtboard,
   snapArtboard,
+  snapItemWithGuides,
   type ArtboardItem,
   type ArtboardSectionId,
   type SectionArtboardData,
+  type SnapGuide,
 } from "@/lib/artboard"
 import { cn } from "@/lib/utils"
 
@@ -33,6 +36,10 @@ export type ArtboardPart = {
   id: string
   children: ReactNode
 }
+
+export const ARTBOARD_SELECT_EVENT = "artboard:select"
+
+export type ArtboardSelectDetail = { sectionId: string; id: string | null }
 
 function useContainerScale(ref: React.RefObject<HTMLDivElement | null>) {
   const [scale, setScale] = useState(1)
@@ -65,6 +72,13 @@ function applyMeasuredHeights(
   }
 }
 
+function isTypingTarget(el: EventTarget | null) {
+  if (!(el instanceof HTMLElement)) return false
+  return Boolean(
+    el.closest("input, textarea, [contenteditable=true], select"),
+  )
+}
+
 export function SectionArtboard({
   sectionId,
   parts,
@@ -81,6 +95,7 @@ export function SectionArtboard({
   const wrapRef = useRef<HTMLDivElement>(null)
   const viewScale = useContainerScale(wrapRef)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [guides, setGuides] = useState<SnapGuide[]>([])
   const dragRef = useRef<null | {
     id: string
     mode: "move" | "scale"
@@ -88,6 +103,7 @@ export function SectionArtboard({
     startY: number
     orig: ArtboardItem
     active: boolean
+    raised: boolean
   }>(null)
   const [, setDragTick] = useState(0)
   const measuredH = useRef(new Map<string, number>())
@@ -100,6 +116,8 @@ export function SectionArtboard({
   boardRef.current = board
   const viewScaleRef = useRef(viewScale)
   viewScaleRef.current = viewScale
+  const selectedIdRef = useRef(selectedId)
+  selectedIdRef.current = selectedId
 
   const partMap = useMemo(() => {
     const m = new Map<string, ReactNode>()
@@ -108,9 +126,9 @@ export function SectionArtboard({
   }, [parts])
 
   const commitBoard = useCallback(
-    (next: SectionArtboardData) => {
+    (next: SectionArtboardData, history: HistoryMode = "mutate") => {
       if (!editor) return
-      editor.patchSettings(["artboards", sectionId], next)
+      editor.patchSettings(["artboards", sectionId], next, history)
     },
     [editor, sectionId],
   )
@@ -118,6 +136,15 @@ export function SectionArtboard({
   const boardForCollision = useCallback(() => {
     return applyMeasuredHeights(boardRef.current, measuredH.current)
   }, [])
+
+  const selectItem = useCallback((id: string | null) => {
+    setSelectedId(id)
+    window.dispatchEvent(
+      new CustomEvent<ArtboardSelectDetail>(ARTBOARD_SELECT_EVENT, {
+        detail: { sectionId, id },
+      }),
+    )
+  }, [sectionId])
 
   useLayoutEffect(() => {
     const ro = new ResizeObserver((entries) => {
@@ -140,6 +167,16 @@ export function SectionArtboard({
   }, [board.items, parts])
 
   useEffect(() => {
+    const onSelect = (e: Event) => {
+      const detail = (e as CustomEvent<ArtboardSelectDetail>).detail
+      if (!detail || detail.sectionId !== sectionId) return
+      setSelectedId(detail.id)
+    }
+    window.addEventListener(ARTBOARD_SELECT_EVENT, onSelect)
+    return () => window.removeEventListener(ARTBOARD_SELECT_EVENT, onSelect)
+  }, [sectionId])
+
+  useEffect(() => {
     if (!editor) return
 
     const onMove = (e: PointerEvent) => {
@@ -151,20 +188,36 @@ export function SectionArtboard({
       if (!drag.active) {
         if (Math.hypot(dxScreen, dyScreen) < 5) return
         drag.active = true
+        if (!drag.raised) {
+          const raised = bringToFront(boardForCollision(), drag.id)
+          boardRef.current = raised
+          commitBoard(raised, "drag")
+          drag.raised = true
+          const current = raised.items.find((i) => i.id === drag.id)
+          if (current) {
+            drag.orig = {
+              ...current,
+              h: measuredH.current.get(drag.id) ?? current.h,
+            }
+          }
+        }
         setDragTick((n) => n + 1)
       }
       const dx = dxScreen / vs
       const dy = dyScreen / vs
       const base = boardForCollision()
       let nextItems: ArtboardItem[]
+      let nextGuides: SnapGuide[] = []
       if (drag.mode === "move") {
         const patched = {
           ...drag.orig,
           h: measuredH.current.get(drag.id) ?? drag.orig.h,
-          x: snapArtboard(drag.orig.x + dx),
-          y: snapArtboard(Math.max(0, drag.orig.y + dy)),
+          x: drag.orig.x + dx,
+          y: Math.max(0, drag.orig.y + dy),
         }
-        nextItems = base.items.map((it) => (it.id === drag.id ? patched : it))
+        const snapped = snapItemWithGuides(patched, base.items, 8)
+        nextGuides = snapped.guides
+        nextItems = base.items.map((it) => (it.id === drag.id ? snapped.item : it))
       } else {
         const delta = (dx + dy) / 220
         const patched = {
@@ -174,8 +227,9 @@ export function SectionArtboard({
         }
         nextItems = base.items.map((it) => (it.id === drag.id ? patched : it))
       }
+      setGuides(nextGuides)
       const next = resolveCollisions({ ...base, items: nextItems }, drag.id)
-      commitBoard(next)
+      commitBoard(next, "drag")
     }
 
     const onUp = () => {
@@ -184,12 +238,16 @@ export function SectionArtboard({
         const base = boardRef.current
         const h = measuredH.current.get(drag.id)
         if (h && Math.abs((base.items.find((i) => i.id === drag.id)?.h ?? 0) - h) >= 2) {
-          commitBoard({
-            ...base,
-            items: base.items.map((it) => (it.id === drag.id ? { ...it, h } : it)),
-          })
+          commitBoard(
+            {
+              ...base,
+              items: base.items.map((it) => (it.id === drag.id ? { ...it, h } : it)),
+            },
+            "drag",
+          )
         }
       }
+      setGuides([])
       if (dragRef.current) {
         dragRef.current = null
         setDragTick((n) => n + 1)
@@ -206,6 +264,102 @@ export function SectionArtboard({
     }
   }, [editor, commitBoard, boardForCollision])
 
+  const deleteSelected = useCallback(() => {
+    const id = selectedIdRef.current
+    if (!id || !editor) return
+    commitBoard(deleteItemFromArtboard(boardRef.current, id), "mutate")
+    selectItem(null)
+  }, [commitBoard, editor, selectItem])
+
+  const duplicateSelected = useCallback(() => {
+    const id = selectedIdRef.current
+    if (!id || !editor) return
+    const result = duplicateArtboardItem(boardRef.current, id)
+    if (!result) return
+    commitBoard(result.board, "mutate")
+    selectItem(result.newId)
+  }, [commitBoard, editor, selectItem])
+
+  const bringSelectedForward = useCallback(() => {
+    const id = selectedIdRef.current
+    if (!id || !editor) return
+    commitBoard(bringToFront(boardForCollision(), id), "mutate")
+  }, [boardForCollision, commitBoard, editor])
+
+  const nudgeFont = useCallback(
+    (delta: number) => {
+      const id = selectedIdRef.current
+      if (!id || !editor) return
+      const base = boardRef.current
+      const it = base.items.find((i) => i.id === id)
+      if (!it || it.kind !== "text") return
+      commitBoard(
+        {
+          ...base,
+          items: base.items.map((row) =>
+            row.id === id ? { ...row, scale: clampScale(row.scale + delta) } : row,
+          ),
+        },
+        "mutate",
+      )
+    },
+    [commitBoard, editor],
+  )
+
+  useEffect(() => {
+    if (!editor) return
+    const onKey = (e: KeyboardEvent) => {
+      if (isTypingTarget(e.target)) return
+      const id = selectedIdRef.current
+      if (!id) return
+      const mod = e.metaKey || e.ctrlKey
+
+      if (mod && e.key.toLowerCase() === "d") {
+        e.preventDefault()
+        duplicateSelected()
+        return
+      }
+      if (e.key === "Backspace" || e.key === "Delete") {
+        e.preventDefault()
+        deleteSelected()
+        return
+      }
+      const step = e.shiftKey ? 8 : 1
+      let dx = 0
+      let dy = 0
+      if (e.key === "ArrowLeft") dx = -step
+      else if (e.key === "ArrowRight") dx = step
+      else if (e.key === "ArrowUp") dy = -step
+      else if (e.key === "ArrowDown") dy = step
+      else return
+
+      e.preventDefault()
+      const base = boardForCollision()
+      const it = base.items.find((i) => i.id === id)
+      if (!it) return
+      const patched = {
+        ...it,
+        x: snapArtboard(it.x + dx),
+        y: snapArtboard(Math.max(0, it.y + dy)),
+      }
+      commitBoard(
+        resolveCollisions(
+          { ...base, items: base.items.map((row) => (row.id === id ? patched : row)) },
+          id,
+        ),
+        "mutate",
+      )
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [
+    editor,
+    deleteSelected,
+    duplicateSelected,
+    boardForCollision,
+    commitBoard,
+  ])
+
   const sorted = useMemo(
     () => [...board.items].sort((a, b) => a.z - b.z),
     [board.items],
@@ -220,22 +374,30 @@ export function SectionArtboard({
     if (!editor) return
     e.stopPropagation()
     if (mode === "scale") e.preventDefault()
-    setSelectedId(it.id)
-    const raised = bringToFront(boardForCollision(), it.id)
-    boardRef.current = raised
-    commitBoard(raised)
-    const current = raised.items.find((i) => i.id === it.id) || it
+    selectItem(it.id)
     const measured = measuredH.current.get(it.id)
     dragRef.current = {
       id: it.id,
       mode,
       startX: e.clientX,
       startY: e.clientY,
-      orig: { ...current, h: measured ?? current.h },
+      orig: { ...it, h: measured ?? it.h },
       active: immediate || mode === "scale",
+      raised: false,
+    }
+    if (immediate || mode === "scale") {
+      const raised = bringToFront(boardForCollision(), it.id)
+      boardRef.current = raised
+      commitBoard(raised, "drag")
+      dragRef.current.raised = true
+      const current = raised.items.find((i) => i.id === it.id) || it
+      dragRef.current.orig = { ...current, h: measured ?? current.h }
     }
     setDragTick((n) => n + 1)
   }
+
+  const selected = selectedId ? board.items.find((i) => i.id === selectedId) : null
+  const selectedIsText = Boolean(selected && selected.kind === "text")
 
   return (
     <div ref={wrapRef} className={cn("relative mx-auto w-full max-w-[1152px]", className)}>
@@ -251,9 +413,25 @@ export function SectionArtboard({
             transform: `scale(${viewScale})`,
           }}
           onPointerDown={() => {
-            if (editor) setSelectedId(null)
+            if (editor) selectItem(null)
           }}
         >
+          {guides.map((g, i) =>
+            g.orient === "v" ? (
+              <div
+                key={`v-${i}-${g.pos}`}
+                className="pointer-events-none absolute top-0 z-[90] w-px bg-[#ff6b9d]"
+                style={{ left: g.pos, height: board.height }}
+              />
+            ) : (
+              <div
+                key={`h-${i}-${g.pos}`}
+                className="pointer-events-none absolute left-0 z-[90] h-px bg-[#4da3ff]"
+                style={{ top: g.pos, width: ARTBOARD_WIDTH }}
+              />
+            ),
+          )}
+
           {sorted.map((it) => {
             const builtin = partMap.get(it.id)
             const freeform =
@@ -263,12 +441,15 @@ export function SectionArtboard({
                     item={it}
                     onChangeText={({ textZh, textEn }) => {
                       const base = boardRef.current
-                      commitBoard({
-                        ...base,
-                        items: base.items.map((row) =>
-                          row.id === it.id ? { ...row, textZh, textEn } : row,
-                        ),
-                      })
+                      commitBoard(
+                        {
+                          ...base,
+                          items: base.items.map((row) =>
+                            row.id === it.id ? { ...row, textZh, textEn } : row,
+                          ),
+                        },
+                        "mutate",
+                      )
                     }}
                   />
                 ) : (
@@ -276,12 +457,15 @@ export function SectionArtboard({
                     item={it}
                     onChangeSrc={(src) => {
                       const base = boardRef.current
-                      commitBoard({
-                        ...base,
-                        items: base.items.map((row) =>
-                          row.id === it.id ? { ...row, src } : row,
-                        ),
-                      })
+                      commitBoard(
+                        {
+                          ...base,
+                          items: base.items.map((row) =>
+                            row.id === it.id ? { ...row, src } : row,
+                          ),
+                        },
+                        "mutate",
+                      )
                     }}
                   />
                 )
@@ -290,7 +474,7 @@ export function SectionArtboard({
             if (!child) return null
             const liveH = measuredH.current.get(it.id) ?? it.h
             const bounds = itemBounds({ ...it, h: liveH })
-            const selected = Boolean(editor && selectedId === it.id)
+            const isSelected = Boolean(editor && selectedId === it.id)
             const freeformItem = isFreeformItem(it)
             return (
               <div
@@ -306,7 +490,7 @@ export function SectionArtboard({
                   top: it.y,
                   width: it.w,
                   height: freeformItem && it.kind === "image" ? it.h : "auto",
-                  zIndex: selected ? 60 : it.z,
+                  zIndex: isSelected ? 60 : it.z,
                   transform: `scale(${it.scale})`,
                   transformOrigin: "top left",
                 }}
@@ -319,7 +503,7 @@ export function SectionArtboard({
                     )
                   ) {
                     e.stopPropagation()
-                    setSelectedId(it.id)
+                    selectItem(it.id)
                     return
                   }
                   startDrag(it, "move", e)
@@ -327,58 +511,24 @@ export function SectionArtboard({
               >
                 <div className="w-full overflow-visible">{child}</div>
 
-                {selected ? (
+                {isSelected ? (
                   <>
+                    <SelectionToolbar
+                      onDelete={deleteSelected}
+                      onDuplicate={duplicateSelected}
+                      onBringForward={bringSelectedForward}
+                      showFont={selectedIsText}
+                      onFontSmaller={() => nudgeFont(-0.08)}
+                      onFontLarger={() => nudgeFont(0.08)}
+                    />
                     <div className="pointer-events-none absolute -inset-1 rounded-lg border-2 border-brand" />
                     <span className="pointer-events-none absolute -top-6 left-0 whitespace-nowrap rounded bg-brand px-1.5 py-0.5 text-[10px] font-semibold text-brand-foreground">
                       {Math.round(bounds.w)}×{Math.round(bounds.h)} · {Math.round(it.scale * 100)}%
                     </span>
-                    {freeformItem ? (
-                      <button
-                        type="button"
-                        title="刪除此物件"
-                        className="absolute -right-2 -top-2 z-[70] grid size-6 place-items-center rounded-full border border-border bg-background text-destructive shadow hover:bg-muted"
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          commitBoard(removeItemFromArtboard(boardRef.current, it.id))
-                          setSelectedId(null)
-                        }}
-                      >
-                        <Trash2 className="size-3" />
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        title="還原此物件"
-                        className="absolute -right-2 -top-2 z-[70] grid size-6 place-items-center rounded-full border border-border bg-background text-muted-foreground shadow hover:text-foreground"
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          const def = defaults.items.find((d) => d.id === it.id)
-                          if (!def) return
-                          const base = boardRef.current
-                          const nextItems = base.items.map((row) =>
-                            row.id === it.id ? { ...def } : row,
-                          )
-                          commitBoard(
-                            resolveCollisions(
-                              applyMeasuredHeights(
-                                { ...base, items: nextItems },
-                                measuredH.current,
-                              ),
-                              it.id,
-                            ),
-                          )
-                        }}
-                      >
-                        <RotateCcw className="size-3" />
-                      </button>
-                    )}
                     <button
                       type="button"
                       aria-label="縮放"
-                      title="拖曳縮放（連字一齊）"
+                      title="拖曳縮放"
                       className="absolute -bottom-2 -right-2 z-[70] size-3.5 cursor-nwse-resize rounded-full border-2 border-brand bg-background shadow"
                       onPointerDown={(e) => startDrag(it, "scale", e, true)}
                     />

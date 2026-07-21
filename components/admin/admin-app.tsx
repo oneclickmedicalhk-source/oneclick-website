@@ -21,6 +21,17 @@ import {
   useActivePageSection,
 } from "@/components/admin/section-presence"
 import { InsertToolbar } from "@/components/admin/insert-toolbar"
+import { LayersPanel } from "@/components/admin/layers-panel"
+import {
+  ARTBOARD_SELECT_EVENT,
+  type ArtboardSelectDetail,
+} from "@/components/artboard/section-artboard"
+import {
+  createDefaultArtboards,
+  deleteItemFromArtboard,
+  restoreRemovedItem,
+  type ArtboardSectionId,
+} from "@/lib/artboard"
 import type { PageSectionId } from "@/lib/content"
 
 function stripMeta(data: SiteContent & { _meta?: { dbConnected?: boolean } }): {
@@ -41,11 +52,36 @@ function VisualCanvas({
   viewport: "desktop" | "mobile"
   onActiveSection?: (id: PageSectionId) => void
 }) {
+  const editor = useEditorRequired()
   const activeSection = useActivePageSection("#visual-canvas")
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const sectionId = activeSection as ArtboardSectionId
+  const board =
+    editor.content.settings.artboards?.[sectionId] ||
+    createDefaultArtboards()[sectionId]
 
   useEffect(() => {
     onActiveSection?.(activeSection)
   }, [activeSection, onActiveSection])
+
+  useEffect(() => {
+    setSelectedId(null)
+  }, [activeSection])
+
+  useEffect(() => {
+    const onSelect = (e: Event) => {
+      const detail = (e as CustomEvent<ArtboardSelectDetail>).detail
+      if (!detail) return
+      if (detail.sectionId !== sectionId) return
+      setSelectedId(detail.id)
+    }
+    window.addEventListener(ARTBOARD_SELECT_EVENT, onSelect)
+    return () => window.removeEventListener(ARTBOARD_SELECT_EVENT, onSelect)
+  }, [sectionId])
+
+  const commitBoard = (next: typeof board) => {
+    editor.patchSettings(["artboards", sectionId], next, "mutate")
+  }
 
   return (
     <div className="relative flex flex-1 flex-col">
@@ -55,22 +91,50 @@ function VisualCanvas({
           actions={<InsertToolbar activeSection={activeSection} />}
         />
       </div>
-      <div className="flex justify-center bg-muted/50 p-4 sm:p-6">
-        <div
-          id="visual-canvas"
-          className={`min-h-[70vh] overflow-hidden rounded-2xl border border-border bg-background shadow-lg transition-all ${
-            viewport === "mobile" ? "w-full max-w-[390px]" : "w-full max-w-6xl"
-          }`}
-        >
-          <div className="border-b border-border bg-muted/40 px-3 py-2 text-center text-[11px] font-medium text-muted-foreground">
-            加文字／加圖片 · 拖移縮放 · ⌘Z 上一步 · 記得儲存
+      <div className="flex min-h-0 flex-1">
+        <div className="flex min-w-0 flex-1 justify-center overflow-auto bg-muted/50 p-4 sm:p-6">
+          <div
+            id="visual-canvas"
+            className={`min-h-[70vh] overflow-hidden rounded-2xl border border-border bg-background shadow-lg transition-all ${
+              viewport === "mobile" ? "w-full max-w-[390px]" : "w-full max-w-6xl"
+            }`}
+          >
+            <div className="border-b border-border bg-muted/40 px-3 py-2 text-center text-[11px] font-medium text-muted-foreground">
+              刪除 · 複製 ⌘D · 微移方向鍵 · 對齊線 · ⌘Z · 記得儲存
+            </div>
+            <SiteHeader />
+            <main>
+              <LandingSections />
+            </main>
+            <SiteFooter />
           </div>
-          <SiteHeader />
-          <main>
-            <LandingSections />
-          </main>
-          <SiteFooter />
         </div>
+        <LayersPanel
+          sectionId={activeSection}
+          board={board}
+          selectedId={selectedId}
+          onSelect={(id) => {
+            setSelectedId(id)
+            window.dispatchEvent(
+              new CustomEvent<ArtboardSelectDetail>(ARTBOARD_SELECT_EVENT, {
+                detail: { sectionId, id },
+              }),
+            )
+          }}
+          onDelete={(id) => {
+            commitBoard(deleteItemFromArtboard(board, id))
+            if (selectedId === id) setSelectedId(null)
+          }}
+          onRestore={(id) => {
+            commitBoard(restoreRemovedItem(board, sectionId, id))
+            setSelectedId(id)
+            window.dispatchEvent(
+              new CustomEvent<ArtboardSelectDetail>(ARTBOARD_SELECT_EVENT, {
+                detail: { sectionId, id },
+              }),
+            )
+          }}
+        />
       </div>
     </div>
   )

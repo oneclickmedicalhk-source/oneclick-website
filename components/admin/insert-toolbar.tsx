@@ -6,6 +6,10 @@ import { useEditor } from "@/components/admin/editor-provider"
 import { useLanguage } from "@/components/language-provider"
 import { uploadImageFile } from "@/components/admin/primitives"
 import {
+  ARTBOARD_SELECT_EVENT,
+  type ArtboardSelectDetail,
+} from "@/components/artboard/section-artboard"
+import {
   addItemToArtboard,
   createDefaultArtboards,
   createImageWidget,
@@ -13,6 +17,14 @@ import {
   type ArtboardSectionId,
 } from "@/lib/artboard"
 import { SECTION_LABELS, type PageSectionId } from "@/lib/content"
+
+function selectOnArtboard(sectionId: ArtboardSectionId, id: string) {
+  window.dispatchEvent(
+    new CustomEvent<ArtboardSelectDetail>(ARTBOARD_SELECT_EVENT, {
+      detail: { sectionId, id },
+    }),
+  )
+}
 
 export function InsertToolbar({ activeSection }: { activeSection: PageSectionId }) {
   const editor = useEditor()
@@ -27,7 +39,7 @@ export function InsertToolbar({ activeSection }: { activeSection: PageSectionId 
   const board = settings.artboards?.[sectionId] || createDefaultArtboards()[sectionId]
 
   const commit = (next: typeof board) => {
-    editor.patchSettings(["artboards", sectionId], next)
+    editor.patchSettings(["artboards", sectionId], next, "mutate")
   }
 
   const addText = () => {
@@ -38,6 +50,7 @@ export function InsertToolbar({ activeSection }: { activeSection: PageSectionId 
       h: 72,
     })
     commit(addItemToArtboard(board, widget))
+    selectOnArtboard(sectionId, widget.id)
     setError("")
   }
 
@@ -61,6 +74,7 @@ export function InsertToolbar({ activeSection }: { activeSection: PageSectionId 
         src: data.url,
       })
       commit(addItemToArtboard(board, widget))
+      selectOnArtboard(sectionId, widget.id)
     } catch (e) {
       setError(e instanceof Error ? e.message : "上傳失敗")
     } finally {

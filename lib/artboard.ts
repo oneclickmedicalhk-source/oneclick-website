@@ -30,6 +30,8 @@ export type ArtboardItem = {
 export type SectionArtboardData = {
   height: number
   items: ArtboardItem[]
+  /** Built-in item ids the editor has deleted; normalize must not re-add them. */
+  removedIds?: string[]
 }
 
 export type ArtboardsMap = Record<ArtboardSectionId, SectionArtboardData>
@@ -155,14 +157,17 @@ export function createDefaultArtboards(): ArtboardsMap {
         item("hero.imagePrimary", 620, 140, 220, 460, 1),
         item("hero.imageSecondary", 820, 80, 260, 520, 2),
       ],
+      removedIds: [],
     },
     features: {
       height: 2680,
       items: featuresItems,
+      removedIds: [],
     },
     how: {
       height: 720,
       items: howItems,
+      removedIds: [],
     },
     enterprise: {
       height: 620,
@@ -177,10 +182,12 @@ export function createDefaultArtboards(): ArtboardsMap {
         item("enterprise.cta", 56, 520, 220, 52, 3),
         item("enterprise.image", 680, 60, 280, 520, 1),
       ],
+      removedIds: [],
     },
     about: {
       height: 780,
       items: aboutItems,
+      removedIds: [],
     },
     download: {
       height: 480,
@@ -192,6 +199,7 @@ export function createDefaultArtboards(): ArtboardsMap {
         item("download.storePlay", 648, 260, 150, 52, 3),
         item("download.note", 426, 340, 300, 32, 2),
       ],
+      removedIds: [],
     },
   }
 }
@@ -261,6 +269,10 @@ export function normalizeArtboards(raw: unknown): ArtboardsMap {
       out[sectionId] = structuredClone(def)
       continue
     }
+    const removedIds = Array.isArray(src.removedIds)
+      ? [...new Set(src.removedIds.filter((id): id is string => typeof id === "string"))]
+      : []
+    const removed = new Set(removedIds)
     const rawItems = Array.isArray(src.items) ? src.items : []
     const byId = new Map(
       rawItems
@@ -268,10 +280,13 @@ export function normalizeArtboards(raw: unknown): ArtboardsMap {
         .filter((i) => !OBSOLETE_ITEM_ID.test(i.id))
         .map((i) => [i.id, i]),
     )
-    const items = def.items.map((fallback) => normalizeItem(byId.get(fallback.id), fallback))
+    const items = def.items
+      .filter((fallback) => !removed.has(fallback.id))
+      .map((fallback) => normalizeItem(byId.get(fallback.id), fallback))
     for (const rawItem of rawItems) {
       const free = normalizeFreeformItem(rawItem)
       if (!free) continue
+      if (removed.has(free.id)) continue
       if (items.some((i) => i.id === free.id)) continue
       items.push(free)
     }
@@ -279,7 +294,7 @@ export function normalizeArtboards(raw: unknown): ArtboardsMap {
       typeof src.height === "number" && Number.isFinite(src.height)
         ? Math.max(320, src.height)
         : def.height
-    out[sectionId] = { height, items }
+    out[sectionId] = { height, items, removedIds }
   }
   return out
 }
@@ -291,18 +306,167 @@ export function addItemToArtboard(
   const maxZ = board.items.reduce((m, i) => Math.max(m, i.z), 0)
   const next = { ...item, z: Math.max(item.z, maxZ + 1) }
   const bottom = itemBounds(next).b
+  const removedIds = (board.removedIds || []).filter((id) => id !== next.id)
   return {
     height: Math.max(board.height, snapArtboard(bottom + 48)),
     items: [...board.items, next],
+    removedIds,
   }
+}
+
+/** Delete any item. Freeform is removed; built-ins go into removedIds. */
+export function deleteItemFromArtboard(
+  board: SectionArtboardData,
+  id: string,
+): SectionArtboardData {
+  const target = board.items.find((i) => i.id === id)
+  const items = board.items.filter((i) => i.id !== id)
+  const removedIds = [...(board.removedIds || [])]
+  if (target && !isFreeformItem(target) && !removedIds.includes(id)) {
+    removedIds.push(id)
+  }
+  return { ...board, items, removedIds }
 }
 
 export function removeItemFromArtboard(
   board: SectionArtboardData,
   id: string,
 ): SectionArtboardData {
-  return {
-    ...board,
-    items: board.items.filter((i) => i.id !== id),
+  return deleteItemFromArtboard(board, id)
+}
+
+export function restoreRemovedItem(
+  board: SectionArtboardData,
+  sectionId: ArtboardSectionId,
+  id: string,
+): SectionArtboardData {
+  const def = createDefaultArtboards()[sectionId].items.find((i) => i.id === id)
+  if (!def) {
+    return {
+      ...board,
+      removedIds: (board.removedIds || []).filter((x) => x !== id),
+    }
   }
+  const removedIds = (board.removedIds || []).filter((x) => x !== id)
+  if (board.items.some((i) => i.id === id)) {
+    return { ...board, removedIds }
+  }
+  return addItemToArtboard({ ...board, removedIds }, { ...def })
+}
+
+export function duplicateArtboardItem(
+  board: SectionArtboardData,
+  id: string,
+): { board: SectionArtboardData; newId: string } | null {
+  const src = board.items.find((i) => i.id === id)
+  if (!src) return null
+  const copy: ArtboardItem = {
+    ...structuredClone(src),
+    id: isFreeformItem(src)
+      ? newWidgetId(src.kind!)
+      : `${src.id}.copy.${Date.now().toString(36).slice(-4)}`,
+    x: snapArtboard(src.x + 24),
+    y: snapArtboard(src.y + 24),
+    kind: isFreeformItem(src) ? src.kind : "text",
+    textZh: isFreeformItem(src) ? src.textZh : undefined,
+    textEn: isFreeformItem(src) ? src.textEn : undefined,
+    src: isFreeformItem(src) && src.kind === "image" ? src.src : undefined,
+  }
+  // Duplicating a built-in becomes a freeform text/image snapshot of position only —
+  // for built-ins we clone as freeform text placeholder if not image id
+  if (!isFreeformItem(src)) {
+    const isImage = /image|Image|store|badge\.|icon/.test(src.id) || src.id.includes(".image")
+    if (isImage) {
+      copy.kind = "image"
+      copy.src = "/placeholder.svg"
+      copy.textZh = undefined
+      copy.textEn = undefined
+    } else {
+      copy.kind = "text"
+      copy.textZh = "複製文字"
+      copy.textEn = "Copied text"
+      copy.src = undefined
+    }
+  }
+  return { board: addItemToArtboard(board, copy), newId: copy.id }
+}
+
+export function visibleArtboardItems(board: SectionArtboardData): ArtboardItem[] {
+  const removed = new Set(board.removedIds || [])
+  return board.items.filter((i) => !removed.has(i.id))
+}
+
+export type SnapGuide = { orient: "v" | "h"; pos: number }
+
+export function snapItemWithGuides(
+  moving: ArtboardItem,
+  others: ArtboardItem[],
+  threshold = 6,
+): { item: ArtboardItem; guides: SnapGuide[] } {
+  const A = itemBounds(moving)
+  const centers = {
+    cx: A.x + A.w / 2,
+    cy: A.y + A.h / 2,
+  }
+  let x = moving.x
+  let y = moving.y
+  const guides: SnapGuide[] = []
+
+  const candidatesX: number[] = [0, ARTBOARD_WIDTH / 2, ARTBOARD_WIDTH]
+  const candidatesY: number[] = [0]
+
+  for (const o of others) {
+    if (o.id === moving.id) continue
+    const B = itemBounds(o)
+    candidatesX.push(B.x, B.x + B.w / 2, B.r)
+    candidatesY.push(B.y, B.y + B.h / 2, B.b)
+  }
+
+  let bestDx = threshold + 1
+  let bestDy = threshold + 1
+  let snapX: number | null = null
+  let snapY: number | null = null
+  let guideX: number | null = null
+  let guideY: number | null = null
+
+  for (const tx of candidatesX) {
+    for (const [from, toX] of [
+      [A.x, tx],
+      [centers.cx, tx],
+      [A.r, tx],
+    ] as const) {
+      const d = Math.abs(from - tx)
+      if (d <= threshold && d < bestDx) {
+        bestDx = d
+        snapX = moving.x + (tx - from)
+        guideX = tx
+      }
+      void toX
+    }
+  }
+  for (const ty of candidatesY) {
+    for (const [from] of [
+      [A.y, ty],
+      [centers.cy, ty],
+      [A.b, ty],
+    ] as const) {
+      const d = Math.abs(from - ty)
+      if (d <= threshold && d < bestDy) {
+        bestDy = d
+        snapY = moving.y + (ty - from)
+        guideY = ty
+      }
+    }
+  }
+
+  if (snapX !== null) {
+    x = snapArtboard(snapX)
+    if (guideX !== null) guides.push({ orient: "v", pos: guideX })
+  }
+  if (snapY !== null) {
+    y = snapArtboard(Math.max(0, snapY))
+    if (guideY !== null) guides.push({ orient: "h", pos: guideY })
+  }
+
+  return { item: { ...moving, x, y }, guides }
 }

@@ -18,6 +18,8 @@ export type EditorPath = (string | number)[]
 const MAX_HISTORY = 80
 const COALESCE_MS = 600
 
+export type HistoryMode = "drag" | "mutate" | "auto"
+
 type EditorContextValue = {
   enabled: true
   content: SiteContent
@@ -29,7 +31,7 @@ type EditorContextValue = {
   undo: () => void
   redo: () => void
   patch: (path: EditorPath, value: unknown) => void
-  patchSettings: (path: EditorPath, value: unknown) => void
+  patchSettings: (path: EditorPath, value: unknown, history?: HistoryMode) => void
   setContent: (c: SiteContent) => void
   markClean: () => void
   markDirty: () => void
@@ -67,12 +69,14 @@ export function EditorProvider({
   const contentRef = useRef(content)
   contentRef.current = content
 
-  const pushUndo = useCallback((prev: SiteContent, key: string) => {
+  const pushUndo = useCallback((prev: SiteContent, key: string, mode: HistoryMode) => {
     const now = Date.now()
     const last = coalesceRef.current
+    // Only continuous drag/scale gestures coalesce. Add/delete/duplicate always push.
     const coalesce =
-      key.startsWith("artboards") &&
-      last.key.startsWith("artboards") &&
+      mode === "drag" &&
+      key.startsWith("artboards.drag") &&
+      last.key.startsWith("artboards.drag") &&
       now - last.at < COALESCE_MS
 
     coalesceRef.current = { key, at: now }
@@ -84,7 +88,6 @@ export function EditorProvider({
 
   const setContent = useCallback((c: SiteContent) => {
     setContentState(c)
-    // Loading / saving resets history so undo doesn't jump across sessions
     setUndoStack([])
     setRedoStack([])
     coalesceRef.current = { key: "", at: 0 }
@@ -96,7 +99,7 @@ export function EditorProvider({
   const patch = useCallback(
     (path: EditorPath, value: unknown) => {
       const prev = contentRef.current
-      pushUndo(prev, `locale.${pathKey(path)}`)
+      pushUndo(prev, `locale.${pathKey(path)}`, "mutate")
       setContentState({
         ...prev,
         [lang]: setIn(prev[lang], path, value),
@@ -107,9 +110,18 @@ export function EditorProvider({
   )
 
   const patchSettings = useCallback(
-    (path: EditorPath, value: unknown) => {
+    (path: EditorPath, value: unknown, history: HistoryMode = "auto") => {
       const prev = contentRef.current
-      pushUndo(prev, `settings.${pathKey(path)}`)
+      const keyBase = pathKey(path)
+      const mode: HistoryMode =
+        history !== "auto"
+          ? history
+          : keyBase.startsWith("artboards")
+            ? "mutate"
+            : "mutate"
+      const histKey =
+        mode === "drag" ? `artboards.drag.${keyBase}` : `artboards.mutate.${keyBase}`
+      pushUndo(prev, histKey, mode)
       setContentState({
         ...prev,
         settings: setIn(prev.settings, path, value),
@@ -149,14 +161,6 @@ export function EditorProvider({
     const onKey = (e: KeyboardEvent) => {
       const mod = e.metaKey || e.ctrlKey
       if (!mod) return
-      const target = e.target as HTMLElement | null
-      const tag = target?.tagName?.toLowerCase()
-      const typing =
-        tag === "input" ||
-        tag === "textarea" ||
-        target?.isContentEditable ||
-        target?.closest?.("[contenteditable=true]")
-      // Allow undo even while editing text fields (restore previous CMS state)
       if (e.key === "z" && !e.shiftKey) {
         e.preventDefault()
         undo()
@@ -165,9 +169,7 @@ export function EditorProvider({
       if ((e.key === "z" && e.shiftKey) || e.key === "y") {
         e.preventDefault()
         redo()
-        return
       }
-      void typing
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
