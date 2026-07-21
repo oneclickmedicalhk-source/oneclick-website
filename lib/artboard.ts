@@ -59,7 +59,7 @@ export function createDefaultArtboards(): ArtboardsMap {
       item(`pillar.${i}.tag`, x, y, 160, 36, 2),
       item(`pillar.${i}.title`, x, y + 52, 480, 56, 2),
       item(`pillar.${i}.desc`, x, y + 120, 480, 110, 2),
-      item(`pillar.${i}.points`, x, y + 248, 480, 130, 2),
+      item(`pillar.${i}.points`, x, y + 248, 480, 96, 2),
       item(`pillar.${i}.cta`, x, y + 396, 250, 52, 3),
       item(`pillar.${i}.image`, layout.imageX, layout.y - 20, 280, 520, 1),
     )
