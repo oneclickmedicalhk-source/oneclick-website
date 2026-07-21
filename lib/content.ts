@@ -14,6 +14,47 @@ export type ActivityItem = {
   at: string
 }
 
+export type PageSectionId =
+  | "hero"
+  | "features"
+  | "how"
+  | "enterprise"
+  | "about"
+  | "download"
+
+export type LayoutTransform = {
+  x: number
+  y: number
+  scale: number
+}
+
+export const DEFAULT_SECTION_ORDER: PageSectionId[] = [
+  "hero",
+  "features",
+  "how",
+  "enterprise",
+  "about",
+  "download",
+]
+
+export const SECTION_ANCHORS: Record<PageSectionId, string> = {
+  hero: "#top",
+  features: "#features",
+  how: "#how",
+  enterprise: "#enterprise",
+  about: "#about",
+  download: "#download",
+}
+
+export const SECTION_LABELS: Record<PageSectionId, string> = {
+  hero: "Hero 主視覺",
+  features: "平台功能",
+  how: "使用流程",
+  enterprise: "企業方案",
+  about: "關於我們",
+  download: "下載區塊",
+}
+
 export type SiteSettings = {
   appUrl: string
   appStoreUrl: string
@@ -28,6 +69,8 @@ export type SiteSettings = {
     pillars: string[]
     enterprise: string
   }
+  sectionOrder: PageSectionId[]
+  layout: Record<string, LayoutTransform>
   seo: {
     title: string
     description: string
@@ -94,6 +137,8 @@ export function createDefaultContent(): SiteContent {
         ],
         enterprise: "/screens/enterprise.jpeg",
       },
+      sectionOrder: [...DEFAULT_SECTION_ORDER],
+      layout: {},
       seo: {
         title: "壹鍵康 OneClick Wellness | 一站式 AI 健康管理平台",
         description:
@@ -107,6 +152,71 @@ export function createDefaultContent(): SiteContent {
     },
     media: structuredClone(DEFAULT_MEDIA),
     activity: [],
+  }
+}
+
+export function normalizeSectionOrder(order: unknown): PageSectionId[] {
+  const allowed = new Set<PageSectionId>(DEFAULT_SECTION_ORDER)
+  const list = Array.isArray(order)
+    ? order.filter((id): id is PageSectionId => typeof id === "string" && allowed.has(id as PageSectionId))
+    : []
+  const seen = new Set<PageSectionId>()
+  const next: PageSectionId[] = []
+  for (const id of list) {
+    if (seen.has(id)) continue
+    seen.add(id)
+    next.push(id)
+  }
+  for (const id of DEFAULT_SECTION_ORDER) {
+    if (!seen.has(id)) next.push(id)
+  }
+  return next
+}
+
+export function normalizeLayout(layout: unknown): Record<string, LayoutTransform> {
+  if (!layout || typeof layout !== "object") return {}
+  const out: Record<string, LayoutTransform> = {}
+  for (const [key, value] of Object.entries(layout as Record<string, unknown>)) {
+    if (!value || typeof value !== "object") continue
+    const v = value as Partial<LayoutTransform>
+    const x = typeof v.x === "number" && Number.isFinite(v.x) ? v.x : 0
+    const y = typeof v.y === "number" && Number.isFinite(v.y) ? v.y : 0
+    const scale =
+      typeof v.scale === "number" && Number.isFinite(v.scale) ? Math.min(1.5, Math.max(0.5, v.scale)) : 1
+    if (x === 0 && y === 0 && scale === 1) continue
+    out[key] = { x, y, scale }
+  }
+  return out
+}
+
+/** Merge older Mongo docs that lack sectionOrder / layout. */
+export function normalizeSiteContent(raw: SiteContent): SiteContent {
+  const defaults = createDefaultContent()
+  return {
+    ...defaults,
+    ...raw,
+    zh: raw.zh || defaults.zh,
+    en: raw.en || defaults.en,
+    media: Array.isArray(raw.media) ? raw.media : defaults.media,
+    activity: Array.isArray(raw.activity) ? raw.activity : [],
+    settings: {
+      ...defaults.settings,
+      ...(raw.settings || {}),
+      images: {
+        ...defaults.settings.images,
+        ...(raw.settings?.images || {}),
+        pillars:
+          Array.isArray(raw.settings?.images?.pillars) && raw.settings.images.pillars.length
+            ? raw.settings.images.pillars
+            : defaults.settings.images.pillars,
+      },
+      seo: {
+        ...defaults.settings.seo,
+        ...(raw.settings?.seo || {}),
+      },
+      sectionOrder: normalizeSectionOrder(raw.settings?.sectionOrder),
+      layout: normalizeLayout(raw.settings?.layout),
+    },
   }
 }
 

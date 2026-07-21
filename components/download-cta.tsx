@@ -13,7 +13,7 @@ export function DownloadCta() {
   const playStoreUrl = settings.playStoreUrl || appUrl
 
   return (
-    <section className="py-16 lg:py-24">
+    <section id="download" className="scroll-mt-20 py-16 lg:py-24">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="flex flex-col items-center gap-7 rounded-3xl border border-border bg-card px-6 py-14 text-center shadow-sm sm:px-12">
           <EditableText

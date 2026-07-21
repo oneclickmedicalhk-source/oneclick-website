@@ -1,5 +1,11 @@
 import { getDb, isDbConfigured } from "@/lib/db"
-import { createDefaultContent, type ActivityItem, type MediaItem, type SiteContent } from "@/lib/content"
+import {
+  createDefaultContent,
+  normalizeSiteContent,
+  type ActivityItem,
+  type MediaItem,
+  type SiteContent,
+} from "@/lib/content"
 
 const DOC_ID = "site"
 const COLLECTION = "content"
@@ -20,18 +26,18 @@ function stripId(doc: StoredDoc): SiteContent {
 export async function getSiteContent(): Promise<SiteContent> {
   if (!isDbConfigured()) {
     if (!memoryFallback) memoryFallback = cloneDefault()
-    return structuredClone(memoryFallback)
+    return normalizeSiteContent(structuredClone(memoryFallback))
   }
 
   const db = await getDb()
   const col = db.collection<StoredDoc>(COLLECTION)
   const existing = await col.findOne({ _id: DOC_ID })
-  if (existing) return stripId(existing)
+  if (existing) return normalizeSiteContent(stripId(existing))
 
   const seeded = cloneDefault()
   seeded.updatedAt = new Date().toISOString()
   await col.insertOne({ ...seeded, _id: DOC_ID })
-  return seeded
+  return normalizeSiteContent(seeded)
 }
 
 export async function saveSiteContent(
@@ -39,7 +45,7 @@ export async function saveSiteContent(
   activityWhat?: string,
 ): Promise<SiteContent> {
   const next: SiteContent = {
-    ...content,
+    ...normalizeSiteContent(content),
     updatedAt: new Date().toISOString(),
   }
 

@@ -5,6 +5,7 @@ import { PhoneMockup } from "@/components/phone-mockup"
 import { useLanguage } from "@/components/language-provider"
 import { EditableText } from "@/components/admin/editable-text"
 import { EditableImage } from "@/components/admin/editable-image"
+import { EditableLayout } from "@/components/admin/editable-layout"
 import { useEditor } from "@/components/admin/editor-provider"
 
 export function Enterprise() {
@@ -64,13 +65,15 @@ export function Enterprise() {
               </a>
             </div>
             <div className="flex justify-center lg:justify-end">
-              <EditableImage
-                path={["images", "enterprise"]}
-                src={settings.images.enterprise}
-                mediaId="enterprise"
-              >
-                <PhoneMockup src={settings.images.enterprise} alt={t.enterprise.title} />
-              </EditableImage>
+              <EditableLayout id="enterprise">
+                <EditableImage
+                  path={["images", "enterprise"]}
+                  src={settings.images.enterprise}
+                  mediaId="enterprise"
+                >
+                  <PhoneMockup src={settings.images.enterprise} alt={t.enterprise.title} />
+                </EditableImage>
+              </EditableLayout>
             </div>
           </div>
         </div>

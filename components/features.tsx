@@ -5,6 +5,7 @@ import { PhoneMockup } from "@/components/phone-mockup"
 import { useLanguage } from "@/components/language-provider"
 import { EditableText } from "@/components/admin/editable-text"
 import { EditableImage } from "@/components/admin/editable-image"
+import { EditableLayout } from "@/components/admin/editable-layout"
 import { useEditor } from "@/components/admin/editor-provider"
 
 const meta = [
@@ -107,13 +108,15 @@ export function Features() {
                       className={`absolute -inset-5 -z-10 rounded-[3rem] ${M.bg} blur-2xl`}
                       aria-hidden="true"
                     />
-                    <EditableImage
-                      path={["images", "pillars", i]}
-                      src={screens[i] || "/placeholder.svg"}
-                      mediaId={`pillar-${i}`}
-                    >
-                      <PhoneMockup src={screens[i] || "/placeholder.svg"} alt={item.title} />
-                    </EditableImage>
+                    <EditableLayout id={`pillar-${i}`}>
+                      <EditableImage
+                        path={["images", "pillars", i]}
+                        src={screens[i] || "/placeholder.svg"}
+                        mediaId={`pillar-${i}`}
+                      >
+                        <PhoneMockup src={screens[i] || "/placeholder.svg"} alt={item.title} />
+                      </EditableImage>
+                    </EditableLayout>
                   </div>
                 </div>
               </div>

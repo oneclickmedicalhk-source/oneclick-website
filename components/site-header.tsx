@@ -7,6 +7,7 @@ import { useLanguage } from "@/components/language-provider"
 import { handleAnchorClick } from "@/lib/scroll"
 import { EditableText } from "@/components/admin/editable-text"
 import { EditableImage } from "@/components/admin/editable-image"
+import { EditableLayout } from "@/components/admin/editable-layout"
 import { useEditor } from "@/components/admin/editor-provider"
 
 export function SiteHeader() {
@@ -30,9 +31,11 @@ export function SiteHeader() {
   }
 
   const brand = (
-    <EditableImage path={["logoUrl"]} src={settings.logoUrl} mediaId="logo" label="更換 Logo">
-      <Logo logoUrl={settings.logoUrl} />
-    </EditableImage>
+    <EditableLayout id="logo">
+      <EditableImage path={["logoUrl"]} src={settings.logoUrl} mediaId="logo" label="更換 Logo">
+        <Logo logoUrl={settings.logoUrl} />
+      </EditableImage>
+    </EditableLayout>
   )
 
   return (

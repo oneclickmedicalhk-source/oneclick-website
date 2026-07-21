@@ -1,8 +1,21 @@
 "use client"
 
 import type { LucideIcon } from "lucide-react"
-import { Eye, Search, Sparkles, X } from "lucide-react"
+import {
+  ArrowDown,
+  ArrowUp,
+  Eye,
+  Search,
+  Sparkles,
+  X,
+} from "lucide-react"
 import { Logo } from "@/components/logo"
+import {
+  SECTION_ANCHORS,
+  SECTION_LABELS,
+  normalizeSectionOrder,
+  type PageSectionId,
+} from "@/lib/content"
 
 export type SectionKey = "visual" | "branding" | "seo"
 
@@ -19,12 +32,31 @@ export function Sidebar({
   onSelect,
   open,
   onClose,
+  sectionOrder,
+  onReorderSections,
+  onJumpSection,
 }: {
   active: SectionKey
   onSelect: (key: SectionKey) => void
   open: boolean
   onClose: () => void
+  sectionOrder?: PageSectionId[]
+  onReorderSections?: (next: PageSectionId[]) => void
+  onJumpSection?: (anchor: string) => void
 }) {
+  const order = normalizeSectionOrder(sectionOrder)
+
+  const move = (index: number, dir: -1 | 1) => {
+    if (!onReorderSections) return
+    const nextIndex = index + dir
+    if (nextIndex < 0 || nextIndex >= order.length) return
+    const next = [...order]
+    const [item] = next.splice(index, 1)
+    next.splice(nextIndex, 0, item)
+    onReorderSections(next)
+    onSelect("visual")
+  }
+
   return (
     <>
       {open ? (
@@ -78,8 +110,50 @@ export function Sidebar({
               )
             })}
           </ul>
+
+          <p className="mt-6 px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            頁面區塊
+          </p>
+          <ul className="flex flex-col gap-0.5">
+            {order.map((id, index) => (
+              <li key={id} className="group flex items-center gap-0.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onSelect("visual")
+                    onJumpSection?.(SECTION_ANCHORS[id])
+                    onClose()
+                  }}
+                  className="min-w-0 flex-1 rounded-lg px-3 py-2 text-left text-sm font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                >
+                  {SECTION_LABELS[id]}
+                </button>
+                <div className="flex shrink-0 flex-col pr-1 opacity-70 transition group-hover:opacity-100">
+                  <button
+                    type="button"
+                    aria-label={`上移 ${SECTION_LABELS[id]}`}
+                    disabled={index === 0}
+                    onClick={() => move(index, -1)}
+                    className="grid size-6 place-items-center rounded text-muted-foreground hover:bg-sidebar-accent hover:text-foreground disabled:opacity-30"
+                  >
+                    <ArrowUp className="size-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`下移 ${SECTION_LABELS[id]}`}
+                    disabled={index === order.length - 1}
+                    onClick={() => move(index, 1)}
+                    className="grid size-6 place-items-center rounded text-muted-foreground hover:bg-sidebar-accent hover:text-foreground disabled:opacity-30"
+                  >
+                    <ArrowDown className="size-3.5" />
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+
           <p className="mt-6 px-3 text-xs leading-relaxed text-muted-foreground">
-            喺「視覺編輯」直接撳頁面上嘅文字或圖片即可修改，好似 Shopline 咁。
+            撳區塊跳到預覽位置；用箭嘴調順序。圖片可用拖曳手柄移位同縮放。
           </p>
         </nav>
 

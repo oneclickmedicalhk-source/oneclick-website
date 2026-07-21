@@ -2,18 +2,17 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { createDefaultContent, type SiteContent } from "@/lib/content"
+import {
+  createDefaultContent,
+  normalizeSiteContent,
+  type SiteContent,
+} from "@/lib/content"
 import { Sidebar, type SectionKey } from "@/components/admin/sidebar"
 import { Topbar } from "@/components/admin/topbar"
 import { EditorProvider, useEditorRequired } from "@/components/admin/editor-provider"
 import { LanguageProvider } from "@/components/language-provider"
 import { SiteHeader } from "@/components/site-header"
-import { Hero } from "@/components/hero"
-import { Features } from "@/components/features"
-import { HowItWorks } from "@/components/how-it-works"
-import { Enterprise } from "@/components/enterprise"
-import { About } from "@/components/about"
-import { DownloadCta } from "@/components/download-cta"
+import { LandingSections } from "@/components/landing-sections"
 import { SiteFooter } from "@/components/site-footer"
 import { BrandingSettings, SeoSettings } from "@/components/admin/settings-panels"
 import { Card } from "@/components/admin/primitives"
@@ -24,7 +23,7 @@ function stripMeta(data: SiteContent & { _meta?: { dbConnected?: boolean } }): {
 } {
   const { _meta, ...rest } = data
   return {
-    content: rest as SiteContent,
+    content: normalizeSiteContent(rest as SiteContent),
     dbConnected: Boolean(_meta?.dbConnected),
   }
 }
@@ -33,21 +32,17 @@ function VisualCanvas({ viewport }: { viewport: "desktop" | "mobile" }) {
   return (
     <div className="flex justify-center bg-muted/50 p-4 sm:p-6">
       <div
+        id="visual-canvas"
         className={`min-h-[70vh] overflow-hidden rounded-2xl border border-border bg-background shadow-lg transition-all ${
           viewport === "mobile" ? "w-full max-w-[390px]" : "w-full max-w-6xl"
         }`}
       >
         <div className="border-b border-border bg-muted/40 px-3 py-2 text-center text-[11px] font-medium text-muted-foreground">
-          點擊文字或圖片即可編輯 · 改完記得撳「儲存」
+          點文字改文案 · 拖圖片改擺位／縮放 · 側欄跳 Section · 改完撳「儲存」
         </div>
         <SiteHeader />
         <main>
-          <Hero />
-          <Features />
-          <HowItWorks />
-          <Enterprise />
-          <About />
-          <DownloadCta />
+          <LandingSections />
         </main>
         <SiteFooter />
       </div>
@@ -121,6 +116,15 @@ function AdminShell({
         }}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
+        sectionOrder={editor.content.settings.sectionOrder}
+        onReorderSections={(next) => editor.patchSettings(["sectionOrder"], next)}
+        onJumpSection={(anchor) => {
+          setActive("visual")
+          requestAnimationFrame(() => {
+            const el = document.querySelector(`#visual-canvas ${anchor}`)
+            if (el) el.scrollIntoView({ behavior: "smooth", block: "start" })
+          })
+        }}
       />
 
       <div className="flex min-w-0 flex-1 flex-col">

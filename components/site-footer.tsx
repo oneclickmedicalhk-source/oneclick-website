@@ -5,6 +5,7 @@ import { useLanguage } from "@/components/language-provider"
 import { handleAnchorClick } from "@/lib/scroll"
 import { EditableText } from "@/components/admin/editable-text"
 import { EditableImage } from "@/components/admin/editable-image"
+import { EditableLayout } from "@/components/admin/editable-layout"
 import { useEditor } from "@/components/admin/editor-provider"
 
 export function SiteFooter() {
@@ -48,9 +49,11 @@ export function SiteFooter() {
       <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
         <div className="grid gap-10 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
           <div className="flex flex-col gap-4">
-            <EditableImage path={["logoUrl"]} src={settings.logoUrl} mediaId="logo" label="更換 Logo">
-              <Logo logoUrl={settings.logoUrl} />
-            </EditableImage>
+            <EditableLayout id="logo-footer">
+              <EditableImage path={["logoUrl"]} src={settings.logoUrl} mediaId="logo" label="更換 Logo">
+                <Logo logoUrl={settings.logoUrl} />
+              </EditableImage>
+            </EditableLayout>
             <EditableText
               path={["footer", "tagline"]}
               value={t.footer.tagline}

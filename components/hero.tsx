@@ -6,6 +6,7 @@ import { useLanguage } from "@/components/language-provider"
 import { handleAnchorClick } from "@/lib/scroll"
 import { EditableText } from "@/components/admin/editable-text"
 import { EditableImage } from "@/components/admin/editable-image"
+import { EditableLayout } from "@/components/admin/editable-layout"
 import { useEditor } from "@/components/admin/editor-provider"
 
 export function Hero() {
@@ -90,31 +91,34 @@ export function Hero() {
             aria-hidden="true"
           />
           <div className="relative flex items-end gap-4">
-            <EditableImage
-              path={["images", "heroPrimary"]}
-              src={settings.images.heroPrimary}
-              mediaId="dashboard"
-              className="max-sm:hidden"
-            >
-              <PhoneMockup
+            <EditableLayout id="heroPrimary" className="max-sm:hidden">
+              <EditableImage
+                path={["images", "heroPrimary"]}
                 src={settings.images.heroPrimary}
-                alt={t.hero.badge}
-                priority
-                className="translate-y-6 scale-90 opacity-95"
-              />
-            </EditableImage>
-            <EditableImage
-              path={["images", "heroSecondary"]}
-              src={settings.images.heroSecondary}
-              mediaId="ai-report"
-            >
-              <PhoneMockup
+                mediaId="dashboard"
+              >
+                <PhoneMockup
+                  src={settings.images.heroPrimary}
+                  alt={t.hero.badge}
+                  priority
+                  className="translate-y-6 scale-90 opacity-95"
+                />
+              </EditableImage>
+            </EditableLayout>
+            <EditableLayout id="heroSecondary">
+              <EditableImage
+                path={["images", "heroSecondary"]}
                 src={settings.images.heroSecondary}
-                alt="AI 健康報告"
-                priority
-                className="z-10 shadow-2xl"
-              />
-            </EditableImage>
+                mediaId="ai-report"
+              >
+                <PhoneMockup
+                  src={settings.images.heroSecondary}
+                  alt="AI 健康報告"
+                  priority
+                  className="z-10 shadow-2xl"
+                />
+              </EditableImage>
+            </EditableLayout>
           </div>
         </div>
       </div>
