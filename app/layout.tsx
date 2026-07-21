@@ -4,6 +4,7 @@ import { Geist, Geist_Mono, Noto_Sans_TC } from 'next/font/google'
 import './globals.css'
 import { getSiteContent } from '@/lib/site-store'
 import { createDefaultContent } from '@/lib/content'
+import { JsonLd } from '@/components/json-ld'
 
 const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] })
 const geistMono = Geist_Mono({
@@ -18,9 +19,11 @@ const notoSansTC = Noto_Sans_TC({
 
 export async function generateMetadata(): Promise<Metadata> {
   let seo = createDefaultContent().settings.seo
+  let logoUrl = '/brand/oneclick-logo.png'
   try {
     const content = await getSiteContent()
     seo = content.settings.seo
+    logoUrl = content.settings.logoUrl || logoUrl
   } catch {
     /* use defaults */
   }
@@ -40,18 +43,9 @@ export async function generateMetadata(): Promise<Metadata> {
       : undefined,
     icons: {
       icon: [
-        {
-          url: '/icon-light-32x32.png',
-          media: '(prefers-color-scheme: light)',
-        },
-        {
-          url: '/icon-dark-32x32.png',
-          media: '(prefers-color-scheme: dark)',
-        },
-        {
-          url: '/icon.svg',
-          type: 'image/svg+xml',
-        },
+        { url: '/icon-32.png', sizes: '32x32', type: 'image/png' },
+        { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+        { url: logoUrl, type: 'image/png' },
       ],
       apple: '/apple-icon.png',
     },
@@ -85,6 +79,7 @@ export default function RootLayout({
       className={`light ${notoSansTC.variable} ${geistSans.variable} ${geistMono.variable}`}
     >
       <body className="bg-background font-sans antialiased">
+        <JsonLd />
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>

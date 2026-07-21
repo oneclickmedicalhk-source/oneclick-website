@@ -204,12 +204,14 @@ export function ImageField({
   src,
   label,
   onUploaded,
+  onClear,
   mediaId,
   ratio = "aspect-[9/19]",
 }: {
   src: string
   label: string
   onUploaded?: (url: string) => void
+  onClear?: () => void
   mediaId?: string
   ratio?: string
 }) {
@@ -240,15 +242,28 @@ export function ImageField({
       </div>
       <div className="flex flex-col gap-2">
         <span className="text-xs font-medium text-foreground">{label}</span>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => inputRef.current?.click()}
-          className="inline-flex w-fit items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground shadow-sm transition-colors hover:bg-muted disabled:opacity-60"
-        >
-          <Upload className="size-3.5" />
-          {busy ? "上傳中…" : "Replace image"}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => inputRef.current?.click()}
+            className="inline-flex w-fit items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground shadow-sm transition-colors hover:bg-muted disabled:opacity-60"
+          >
+            <Upload className="size-3.5" />
+            {busy ? "上傳中…" : "Replace image"}
+          </button>
+          {onClear ? (
+            <button
+              type="button"
+              disabled={busy || !src}
+              onClick={onClear}
+              className="inline-flex w-fit items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-destructive shadow-sm transition-colors hover:bg-muted disabled:opacity-60"
+            >
+              <Trash2 className="size-3.5" />
+              刪除
+            </button>
+          ) : null}
+        </div>
         <span className="max-w-xs truncate font-mono text-[11px] text-muted-foreground">{src}</span>
         {error ? <span className="text-xs text-destructive">{error}</span> : null}
         <input

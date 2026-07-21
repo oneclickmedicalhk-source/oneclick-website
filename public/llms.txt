@@ -1,0 +1,22 @@
+# OneClick Wellness / 壹鍵康
+
+> All-in-one AI health management platform by OneClick HealthTech Limited (壹健康科技有限公司).
+
+## Site
+
+- Home: /
+- Privacy: /privacy
+- Terms: /terms
+- Disclaimer: /disclaimer
+- Admin: /admin (private)
+
+## Product
+
+- Web / iOS / Android app: https://app.oneclick.hk
+- Google Play: https://play.google.com/store/apps/details?id=hk.com.oneclick.wellness
+
+## About
+
+OneClick Wellness combines AI health questionnaires and reports, health-check booking, enterprise group plans, and wellness products for users in Hong Kong and the Greater Bay Area.
+
+Information on the marketing site is for health-management reference only and does not replace medical advice.

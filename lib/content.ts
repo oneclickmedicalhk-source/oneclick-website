@@ -68,7 +68,7 @@ const DEFAULT_MEDIA: MediaItem[] = [
   { id: "products", url: "/screens/products.jpeg", alt: "保健產品截圖", createdAt: new Date(0).toISOString() },
   { id: "questionnaire", url: "/screens/questionnaire.jpeg", alt: "問卷截圖", createdAt: new Date(0).toISOString() },
   { id: "apple-icon", url: "/apple-icon.png", alt: "App 圖示", createdAt: new Date(0).toISOString() },
-  { id: "logo", url: "/icon.svg", alt: "主要 Logo", createdAt: new Date(0).toISOString() },
+  { id: "logo", url: "/brand/oneclick-logo.png", alt: "主要 Logo", createdAt: new Date(0).toISOString() },
 ]
 
 export function createDefaultContent(): SiteContent {
@@ -78,10 +78,10 @@ export function createDefaultContent(): SiteContent {
     settings: {
       appUrl: APP_URL,
       appStoreUrl: APP_URL,
-      playStoreUrl: APP_URL,
+      playStoreUrl: "https://play.google.com/store/apps/details?id=hk.com.oneclick.wellness",
       brandNameZh: "壹鍵康",
       brandNameEn: "OneClick Wellness",
-      logoUrl: "/icon.svg",
+      logoUrl: "/brand/oneclick-logo.png",
       iconUrl: "/apple-icon.png",
       images: {
         heroPrimary: "/screens/dashboard.jpeg",

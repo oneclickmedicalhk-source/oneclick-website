@@ -27,7 +27,7 @@ export function SiteHeader() {
           aria-label={`${settings.brandNameZh} ${settings.brandNameEn}`}
           onClick={(e) => handleAnchorClick(e, "#top")}
         >
-          <Logo brandZh={settings.brandNameZh} brandEn={settings.brandNameEn} logoUrl={settings.logoUrl} />
+          <Logo logoUrl={settings.logoUrl} />
         </a>
 
         <nav className="hidden items-center gap-7 lg:flex" aria-label="Primary">

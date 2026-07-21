@@ -41,11 +41,7 @@ export function SiteFooter() {
       <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
         <div className="grid gap-10 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
           <div className="flex flex-col gap-4">
-            <Logo
-              brandZh={settings.brandNameZh}
-              brandEn={settings.brandNameEn}
-              logoUrl={settings.logoUrl}
-            />
+            <Logo logoUrl={settings.logoUrl} />
             <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">
               {t.footer.tagline}
             </p>

@@ -6,16 +6,14 @@ import {
   Field,
   ImageField,
   ListEditor,
-  MediaTile,
   TextArea,
   TextInput,
   Toggle,
-  uploadImageFile,
 } from "@/components/admin/primitives"
-import type { MediaItem, SiteContent, SiteSettings } from "@/lib/content"
+import type { SiteContent, SiteSettings } from "@/lib/content"
 import { countEditableStrings } from "@/lib/content"
 import { ArrowUpRight, FileEdit, ImagePlus, Languages, MousePointerClick } from "lucide-react"
-import { useMemo, useRef, useState } from "react"
+import { useMemo } from "react"
 
 type Patch = (path: (string | number)[], value: unknown) => void
 type PatchSettings = (path: (string | number)[], value: unknown) => void
@@ -62,7 +60,7 @@ export function DashboardView({
   const activity = (content.activity || []).slice(0, 8)
   const quick: { key: SectionKey; label: string; icon: typeof FileEdit }[] = [
     { key: "hero", label: "編輯主視覺", icon: FileEdit },
-    { key: "media", label: "上傳圖片", icon: ImagePlus },
+    { key: "branding", label: "品牌與連結", icon: ImagePlus },
     { key: "navigation", label: "調整按鈕", icon: MousePointerClick },
     { key: "seo", label: "SEO 設定", icon: Languages },
   ]
@@ -156,7 +154,7 @@ export function BrandingEditor({
           <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
             <div className="grid size-11 place-items-center overflow-hidden rounded-xl bg-brand text-brand-foreground">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={settings.logoUrl || "/icon.svg"} alt="" className="size-full object-cover" />
+              <img src={settings.logoUrl || "/brand/oneclick-logo.png"} alt="" className="size-full object-cover" />
             </div>
             <div className="leading-tight">
               <p className="text-sm font-bold text-foreground">{settings.brandNameZh}</p>
@@ -171,6 +169,7 @@ export function BrandingEditor({
             ratio="aspect-square"
             mediaId="logo"
             onUploaded={(url) => patchSettings(["logoUrl"], url)}
+            onClear={() => patchSettings(["logoUrl"], "/brand/oneclick-logo.png")}
           />
           <ImageField
             src={settings.iconUrl}
@@ -178,6 +177,7 @@ export function BrandingEditor({
             ratio="aspect-square"
             mediaId="apple-icon"
             onUploaded={(url) => patchSettings(["iconUrl"], url)}
+            onClear={() => patchSettings(["iconUrl"], "/apple-icon.png")}
           />
         </div>
       </Card>
@@ -328,107 +328,6 @@ export function FooterEditor({ d, patch }: { d: any; patch: Patch }) {
   )
 }
 
-/* --------------------------------- Media --------------------------------- */
-
-export function MediaLibrary({
-  media,
-  onMediaChange,
-}: {
-  media: MediaItem[]
-  onMediaChange: (media: MediaItem[]) => void
-}) {
-  const inputRef = useRef<HTMLInputElement>(null)
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState("")
-
-  const upload = async (file: File, replaceId?: string, alt?: string) => {
-    setBusy(true)
-    setError("")
-    try {
-      const data = await uploadImageFile(file, { id: replaceId, alt })
-      if (Array.isArray(data.media)) {
-        onMediaChange(data.media as MediaItem[])
-      } else if (data.url) {
-        if (replaceId) {
-          onMediaChange(
-            media.map((m) => (m.id === replaceId ? { ...m, url: data.url, createdAt: new Date().toISOString() } : m)),
-          )
-        } else {
-          onMediaChange([
-            {
-              id: crypto.randomUUID(),
-              url: data.url,
-              alt: alt || file.name,
-              createdAt: new Date().toISOString(),
-            },
-            ...media,
-          ])
-        }
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "上傳失敗")
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <Card
-      title="圖片媒體庫"
-      description="集中管理所有網站圖片，點擊即可替換。"
-      aside={
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => inputRef.current?.click()}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-brand-foreground shadow-sm transition-colors hover:bg-brand/90 disabled:opacity-60"
-        >
-          <ImagePlus className="size-3.5" />
-          {busy ? "上傳中…" : "上傳圖片"}
-        </button>
-      }
-    >
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-        {media.map((m) => (
-          <MediaTile
-            key={m.id}
-            src={m.url}
-            label={m.alt}
-            onReplace={(file) => upload(file, m.id, m.alt)}
-          />
-        ))}
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => inputRef.current?.click()}
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => {
-            e.preventDefault()
-            const file = e.dataTransfer.files?.[0]
-            if (file) upload(file)
-          }}
-          className="flex aspect-square flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border text-muted-foreground transition-colors hover:border-brand hover:text-brand disabled:opacity-60"
-        >
-          <ImagePlus className="size-6" />
-          <span className="text-xs font-medium">拖曳或上傳</span>
-        </button>
-      </div>
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(e) => {
-          const f = e.target.files?.[0]
-          if (f) upload(f)
-          e.target.value = ""
-        }}
-      />
-    </Card>
-  )
-}
-
 /* ---------------------------------- SEO ---------------------------------- */
 
 export function SeoEditor({
@@ -441,7 +340,7 @@ export function SeoEditor({
   const seo = settings.seo
   return (
     <div className="flex flex-col gap-6">
-      <Card title="Meta 資訊" description="搜尋引擎與分享預覽使用的標題與描述。">
+      <Card title="Meta 資訊" description="搜尋引擎與社交分享使用的標題與描述。不會自動保證 Google 排名。">
         <Field label="網站標題 (Title)">
           <TextInput value={seo.title} onChange={(v) => patchSettings(["seo", "title"], v)} />
         </Field>
@@ -497,8 +396,10 @@ export function SeoEditor({
           ratio="aspect-[1200/630]"
           mediaId="og-image"
           onUploaded={(url) => patchSettings(["seo", "ogImage"], url)}
+          onClear={() => patchSettings(["seo", "ogImage"], "/screens/dashboard.jpeg")}
         />
       </Card>
     </div>
   )
 }
+

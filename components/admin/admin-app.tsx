@@ -18,7 +18,6 @@ import {
   BrandingEditor,
   DashboardView,
   FooterEditor,
-  MediaLibrary,
   NavigationEditor,
   SeoEditor,
 } from "@/components/admin/global-editors"
@@ -34,7 +33,6 @@ const SECTION_META: Record<SectionKey, { title: string; desc: string }> = {
   download: { title: "下載區塊", desc: "頁尾上方的行動呼籲區。" },
   navigation: { title: "導覽與按鈕", desc: "頂部選單項目與全站所有行動按鈕文字。" },
   footer: { title: "頁尾 Footer", desc: "頁尾文案、連結、免責聲明與版權。" },
-  media: { title: "圖片媒體庫", desc: "集中管理所有圖片資產。" },
   seo: { title: "SEO 與 Meta", desc: "搜尋引擎與社交分享設定。" },
 }
 
@@ -46,18 +44,29 @@ function setIn(obj: any, path: (string | number)[], value: unknown): any {
   return clone
 }
 
+function stripMeta(data: SiteContent & { _meta?: { dbConnected?: boolean } }): {
+  content: SiteContent
+  dbConnected: boolean
+} {
+  const { _meta, ...rest } = data
+  return {
+    content: rest as SiteContent,
+    dbConnected: Boolean(_meta?.dbConnected),
+  }
+}
+
 export function AdminApp() {
   const router = useRouter()
   const [active, setActive] = useState<SectionKey>("dashboard")
   const [lang, setLang] = useState<Lang>("zh")
   const [content, setContent] = useState<SiteContent | null>(null)
-  const [baseline, setBaseline] = useState<SiteContent | null>(null)
   const [dirty, setDirty] = useState(false)
   const [saved, setSaved] = useState(false)
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [dbConnected, setDbConnected] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -69,15 +78,16 @@ export function AdminApp() {
         return
       }
       if (!res.ok) throw new Error("無法載入內容")
-      const data = (await res.json()) as SiteContent
-      setContent(data)
-      setBaseline(structuredClone(data))
+      const data = await res.json()
+      const { content: next, dbConnected: connected } = stripMeta(data)
+      setContent(next)
+      setDbConnected(connected)
       setDirty(false)
     } catch (e) {
       setError(e instanceof Error ? e.message : "載入失敗")
       const fallback = createDefaultContent()
       setContent(fallback)
-      setBaseline(structuredClone(fallback))
+      setDbConnected(false)
     } finally {
       setLoading(false)
     }
@@ -119,13 +129,11 @@ export function AdminApp() {
         router.replace("/admin/login")
         return
       }
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        throw new Error(data.error || "儲存失敗")
-      }
-      const savedContent = (await res.json()) as SiteContent
-      setContent(savedContent)
-      setBaseline(structuredClone(savedContent))
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || "儲存失敗")
+      const { content: next, dbConnected: connected } = stripMeta(data)
+      setContent(next)
+      setDbConnected(connected)
       setDirty(false)
       setSaved(true)
       setTimeout(() => setSaved(false), 2500)
@@ -134,13 +142,6 @@ export function AdminApp() {
     } finally {
       setSaving(false)
     }
-  }
-
-  const handleReset = () => {
-    if (!baseline) return
-    setContent(structuredClone(baseline))
-    setDirty(false)
-    setSaved(false)
   }
 
   const handleLogout = async () => {
@@ -196,17 +197,6 @@ export function AdminApp() {
         return <NavigationEditor d={d} patch={patch} />
       case "footer":
         return <FooterEditor d={d} patch={patch} />
-      case "media":
-        return (
-          <MediaLibrary
-            media={content.media}
-            onMediaChange={(media) => {
-              setContent((prev) => (prev ? { ...prev, media } : prev))
-              setDirty(true)
-              setSaved(false)
-            }}
-          />
-        )
       case "seo":
         return <SeoEditor settings={content.settings} patchSettings={patchSettings} />
       default:
@@ -243,14 +233,19 @@ export function AdminApp() {
           dirty={dirty}
           saved={saved}
           saving={saving}
+          dbConnected={dbConnected}
           onSave={handleSave}
-          onReset={handleReset}
           onLogout={handleLogout}
           onMenu={() => setSidebarOpen(true)}
         />
 
         <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
           <PageHeader title={meta.title} description={meta.desc} />
+          {!dbConnected ? (
+            <p className="mt-4 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+              未連接資料庫（MONGODB_URI）。變更唔會永久保存。
+            </p>
+          ) : null}
           {error ? (
             <p className="mt-4 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
               {error}

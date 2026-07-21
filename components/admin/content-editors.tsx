@@ -71,12 +71,14 @@ export function HeroEditor({
           label="主畫面截圖"
           mediaId="dashboard"
           onUploaded={(url) => patchSettings(["images", "heroPrimary"], url)}
+          onClear={() => patchSettings(["images", "heroPrimary"], "/screens/dashboard.jpeg")}
         />
         <ImageField
           src={settings.images.heroSecondary}
           label="AI 報告截圖"
           mediaId="ai-report"
           onUploaded={(url) => patchSettings(["images", "heroSecondary"], url)}
+          onClear={() => patchSettings(["images", "heroSecondary"], "/screens/ai-report.jpeg")}
         />
       </Card>
     </div>
@@ -139,6 +141,17 @@ export function PillarsEditor({
             onUploaded={(url) => {
               const next = [...screens]
               next[i] = url
+              patchSettings(["images", "pillars"], next)
+            }}
+            onClear={() => {
+              const defaults = [
+                "/screens/ai-report.jpeg",
+                "/screens/checkup.jpeg",
+                "/screens/enterprise.jpeg",
+                "/screens/products.jpeg",
+              ]
+              const next = [...screens]
+              next[i] = defaults[i] || "/placeholder.svg"
               patchSettings(["images", "pillars"], next)
             }}
           />
@@ -226,6 +239,7 @@ export function EnterpriseEditor({
           label="企業方案截圖"
           mediaId="enterprise"
           onUploaded={(url) => patchSettings(["images", "enterprise"], url)}
+          onClear={() => patchSettings(["images", "enterprise"], "/screens/enterprise.jpeg")}
         />
       </Card>
     </div>

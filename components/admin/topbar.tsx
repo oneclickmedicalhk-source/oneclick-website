@@ -1,6 +1,6 @@
 "use client"
 
-import { Check, Eye, LogOut, Menu, RotateCcw } from "lucide-react"
+import { Check, Eye, LogOut, Menu } from "lucide-react"
 import type { Lang } from "@/lib/i18n"
 import { Segmented } from "@/components/admin/primitives"
 
@@ -11,8 +11,8 @@ export function Topbar({
   dirty,
   saved,
   saving,
+  dbConnected,
   onSave,
-  onReset,
   onLogout,
   onMenu,
 }: {
@@ -22,11 +22,19 @@ export function Topbar({
   dirty: boolean
   saved: boolean
   saving?: boolean
+  dbConnected?: boolean
   onSave: () => void
-  onReset: () => void
   onLogout?: () => void
   onMenu: () => void
 }) {
+  const status = !dbConnected
+    ? { text: "未連接資料庫", className: "bg-destructive/10 text-destructive", dot: "bg-destructive" }
+    : dirty
+      ? { text: "未儲存變更", className: "bg-gold/15 text-gold-foreground", dot: "bg-gold-foreground" }
+      : saved
+        ? { text: "已儲存", className: "bg-success/10 text-success", dot: "bg-success" }
+        : { text: "已儲存", className: "bg-success/10 text-success", dot: "bg-success" }
+
   return (
     <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-border bg-background/90 px-4 py-3 backdrop-blur sm:px-6">
       <div className="flex min-w-0 items-center gap-3">
@@ -59,22 +67,12 @@ export function Topbar({
         </div>
 
         <span
-          className={`hidden items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium sm:inline-flex ${
-            dirty ? "bg-gold/15 text-gold-foreground" : "bg-success/10 text-success"
-          }`}
+          className={`hidden items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium sm:inline-flex ${status.className}`}
+          title={!dbConnected ? "變更唔會永久保存，請設定 MONGODB_URI" : undefined}
         >
-          <span className={`size-1.5 rounded-full ${dirty ? "bg-gold-foreground" : "bg-success"}`} />
-          {dirty ? "未儲存變更" : saved ? "已儲存" : "已同步"}
+          <span className={`size-1.5 rounded-full ${status.dot}`} />
+          {status.text}
         </span>
-
-        <button
-          type="button"
-          onClick={onReset}
-          className="hidden h-9 items-center gap-1.5 rounded-lg border border-border bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted sm:inline-flex"
-        >
-          <RotateCcw className="size-3.5" />
-          還原
-        </button>
 
         <a
           href="/"

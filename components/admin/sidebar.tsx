@@ -3,7 +3,6 @@
 import type { LucideIcon } from "lucide-react"
 import {
   Building2,
-  Image as ImageIcon,
   Info,
   LayoutDashboard,
   LayoutList,
@@ -28,7 +27,6 @@ export type SectionKey =
   | "download"
   | "navigation"
   | "footer"
-  | "media"
   | "seo"
 
 type NavItem = { key: SectionKey; label: string; icon: LucideIcon }
@@ -58,7 +56,6 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { key: "navigation", label: "導覽與按鈕", icon: MousePointerClick },
       { key: "footer", label: "頁尾 Footer", icon: PanelBottom },
-      { key: "media", label: "圖片媒體庫", icon: ImageIcon },
       { key: "seo", label: "SEO 與 Meta", icon: Search },
     ],
   },
@@ -136,8 +133,9 @@ export function Sidebar({
 
         <div className="border-t border-sidebar-border p-3">
           <div className="flex items-center gap-3 rounded-lg px-2 py-1.5">
-            <div className="grid size-9 place-items-center rounded-full bg-brand text-sm font-semibold text-brand-foreground">
-              AD
+            <div className="grid size-9 place-items-center overflow-hidden rounded-full bg-secondary">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/apple-icon.png" alt="" className="size-full object-cover" />
             </div>
             <div className="min-w-0 leading-tight">
               <p className="truncate text-sm font-medium text-sidebar-foreground">Admin</p>
